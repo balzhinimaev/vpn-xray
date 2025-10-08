@@ -1,33 +1,32 @@
 version: "3.8"
+
 services:
-xray-provisioner:
-build:
-context: .
-dockerfile: Dockerfile
-args:
-# Включить xray CLI внутри контейнера (для вычисления pbk). По умолчанию 0.
-WITH_XRAY: 0
-# XRAY_VERSION: 1.8.11
-image: xray-provisioner:latest
-container_name: xray-provisioner
-environment:
-NODE_ENV: production
-HTTP_ADDR: 0.0.0.0:8080
-GRPC_ADDR: 127.0.0.1:10085
-X_PUBLIC_HOST: ${X_PUBLIC_HOST}
-X_IN_TAG: ${X_IN_TAG}
-X_DEFAULT_FLOW: ${X_DEFAULT_FLOW:-xtls-rprx-vision}
-API_TOKEN: ${API_TOKEN}
-# Если не включаете WITH_XRAY=1 — обязательно задайте X_PBK при REALITY без privateKey
-X_PBK: ${X_PBK}
-volumes:
-- /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
-# доступ к localhost-хоста; работает только в Linux
-network_mode: host
-restart: unless-stopped
-healthcheck:
-test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
-interval: 10s
-timeout: 5s
-retries: 5
-start_period: 5s
+  xray-provisioner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 0 — не тянуть бинарник xray внутрь образа; 1 — тянуть (см. Dockerfile)
+        WITH_XRAY: 0
+    image: xray-provisioner:latest
+    container_name: xray-provisioner
+    environment:
+      NODE_ENV: production
+      HTTP_ADDR: 0.0.0.0:8080
+      GRPC_ADDR: 127.0.0.1:10085
+      X_PUBLIC_HOST: ${X_PUBLIC_HOST}
+      X_IN_TAG: ${X_IN_TAG}
+      X_DEFAULT_FLOW: ${X_DEFAULT_FLOW:-xtls-rprx-vision}
+      API_TOKEN: ${API_TOKEN}
+      X_PBK: ${X_PBK}
+    volumes:
+      - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
+    # Нужен доступ к 127.0.0.1:10085 на хосте → host network (Linux)
+    network_mode: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
