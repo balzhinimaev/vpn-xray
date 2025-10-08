@@ -1,4 +1,4 @@
-import type { XrayClient, AddUserParams } from "./types";
+import type { XrayClient, AddUserParams } from "./types.js";
 
 export interface SdkClientOptions {
   host: string;

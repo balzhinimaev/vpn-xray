@@ -4,8 +4,8 @@ import morgan from "morgan";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 
-import { createUsersRouter } from "./http/routes/users";
-import { XrayService } from "./services/xrayService";
+import { createUsersRouter } from "./http/routes/users.js";
+import { XrayService } from "./services/xrayService.js";
 
 export interface AppOptions {
   service: XrayService;

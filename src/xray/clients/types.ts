@@ -1,4 +1,4 @@
-import type { InboundInfo } from "../inbound";
+import type { InboundInfo } from "../inbound.js";
 
 export interface AddUserParams {
   tag: string;

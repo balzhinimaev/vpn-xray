@@ -1,7 +1,7 @@
 import fs from "fs";
 import { execFileSync } from "child_process";
 
-import { config } from "../config";
+import { config } from "../config/index.js";
 
 export type InboundInfo = {
   tag: string;
