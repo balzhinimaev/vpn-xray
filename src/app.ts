@@ -31,7 +31,15 @@ export function createApp(options: AppOptions) {
   const { service, apiToken, corsOrigin } = options;
   const app = express();
 
-  app.set("trust proxy", true);
+  const trustProxyEnv = process.env.TRUST_PROXY?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (trustProxyEnv && trustProxyEnv.length > 0) {
+    app.set("trust proxy", trustProxyEnv);
+  } else {
+    app.set("trust proxy", false);
+  }
   app.use(helmet());
   app.use(express.json());
   app.use(morgan("combined"));
