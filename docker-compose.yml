@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+xray-provisioner:
+build: .
+container_name: xray-provisioner
+environment:
+- NODE_ENV=production
+- HTTP_ADDR=0.0.0.0:8080
+- GRPC_ADDR=127.0.0.1:10085
+- X_PUBLIC_HOST=${X_PUBLIC_HOST}
+- X_IN_TAG=${X_IN_TAG}
+- X_DEFAULT_FLOW=${X_DEFAULT_FLOW:-xtls-rprx-vision}
+- API_TOKEN=${API_TOKEN}
+- X_PBK=${X_PBK}
+volumes:
+- /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
+# Для доступа к 127.0.0.1:10085 (демон Xray на хосте) в Linux удобно использовать host network
+network_mode: host
+restart: unless-stopped

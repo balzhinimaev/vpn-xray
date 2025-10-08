@@ -1,0 +1,21 @@
+[Unit]
+Description=Xray VLESS gRPC provisioner (Node)
+After=network-online.target xray.service
+Wants=network-online.target
+
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/xray-provisioner
+Environment=NODE_ENV=production
+# (рекомендуется) хранить .env рядом и подхватить его через dotenv в приложении
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=3
+User=root
+# Если есть /etc/default/xray-provisioner с переменными окружения, можно добавить:
+# EnvironmentFile=-/etc/default/xray-provisioner
+
+
+[Install]
+WantedBy=multi-user.target

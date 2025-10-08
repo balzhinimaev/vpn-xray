@@ -1,0 +1,90 @@
+# --- Dependencies ---
+
+node_modules/
+
+# --- Build outputs ---
+
+dist/
+build/
+out/
+
+# --- TypeScript ---
+
+tsconfig.tsbuildinfo
+
+# --- Generated code (proto stubs, Variant B) ---
+
+src/generated/
+
+# --- Logs ---
+
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Coverage ---
+
+coverage/
+.nyc_output/
+lcov-report/
+
+# --- Environment & secrets ---
+
+.env
+.env.local
+.env.*.local
+.envrc
+.direnv/
+
+# keep the example env
+
+!.env.example
+
+# --- OS junk ---
+
+.DS_Store
+Thumbs.db
+
+# --- Editors ---
+
+.idea/
+.vscode/
+.history/
+
+# --- Caches ---
+
+.cache/
+.npm/
+.pnpm-store/
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/patches
+!.yarn/versions
+
+# --- Temp files ---
+
+*.swp
+*.swo
+*.tmp
+*.temp
+.tmp/
+.tmp*/
+tmp/
+
+# --- Docker ---
+
+docker-data/
+*.tar
+
+# --- Tests ---
+
+junit.xml
+
+# --- Compose local overrides ---
+
+docker-compose.override.yml
