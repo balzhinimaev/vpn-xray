@@ -2,7 +2,7 @@ import fs from "fs";
 import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 
-import type { XrayClient, AddUserParams } from "./types";
+import type { XrayClient, AddUserParams } from "./types.js";
 
 export interface GrpcClientOptions {
   host: string;

@@ -1,8 +1,8 @@
-import { config } from "./config";
-import { pickVlessInbound } from "./xray/inbound";
-import { XrayService } from "./services/xrayService";
-import { createApp } from "./app";
-import { firstExternalIPv4 } from "./utils/network";
+import { config } from "./config/index.js";
+import { pickVlessInbound } from "./xray/inbound.js";
+import { XrayService } from "./services/xrayService.js";
+import { createApp } from "./app.js";
+import { firstExternalIPv4 } from "./utils/network.js";
 
 async function bootstrap() {
   const inbound = pickVlessInbound(config.INBOUND_TAG);

@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 
-import { buildVlessURI, InboundInfo } from "../xray/inbound";
-import { createSdkClient } from "../xray/clients/sdkClient";
-import { createGrpcClient } from "../xray/clients/grpcClient";
-import type { XrayClient } from "../xray/clients/types";
+import { buildVlessURI, InboundInfo } from "../xray/inbound.js";
+import { createSdkClient } from "../xray/clients/sdkClient.js";
+import { createGrpcClient } from "../xray/clients/grpcClient.js";
+import type { XrayClient } from "../xray/clients/types.js";
 
 export interface XrayServiceOptions {
   inbound: InboundInfo;

@@ -1,6 +1,6 @@
 import { Router, RequestHandler, Request, Response } from "express";
 
-import { XrayService } from "../../services/xrayService";
+import { XrayService } from "../../services/xrayService.js";
 
 export interface UsersRouteOptions {
   requireAuth?: RequestHandler;
