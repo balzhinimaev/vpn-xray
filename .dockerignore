@@ -1,0 +1,45 @@
+# Context slimming
+node_modules/
+dist/
+build/
+out/
+
+
+# VCS
+.git/
+.gitignore
+
+
+# Logs
+*.log
+logs/
+
+
+# Env & secrets
+.env
+.env.*
+.envrc
+.direnv/
+
+
+# Editor/OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+
+# Caches
+.cache/
+.npm/
+.pnpm-store/
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/patches
+!.yarn/versions
+
+
+# Proto stubs (if generated)
+src/generated/
