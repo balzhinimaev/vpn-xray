@@ -83,7 +83,12 @@ export function createUsersRouter(
         const email = decodeURIComponent(req.params.email);
         const reset = String(req.query.reset || "false") === "true";
         const stats = await service.getTrafficByEmail(email, reset);
-        res.json({ email, ...stats, resetApplied: !!reset });
+        const { email: statsEmail, resetApplied, ...restStats } = stats ?? {};
+        res.json({
+          email: statsEmail ?? email,
+          resetApplied: resetApplied ?? !!reset,
+          ...restStats,
+        });
       } catch (err: any) {
         console.error("[GET /users/:email/traffic] error:", err);
         const msg = err?.details || err?.message || "Internal error";
