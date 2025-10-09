@@ -1,0 +1,524 @@
+{
+  "info": {
+    "_postman_id": "7b1c2f5e-6a89-4c90-9e94-3f5ed6cfe001",
+    "name": "Xray Provisioner API",
+    "description": "Postman collection for the Xray provisioner service that manages VLESS accounts tied to Telegram users.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness probe. Returns `{ \"ok\": true }` when the service is healthy."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin (API Token)",
+      "description": "Routes secured with the static API token. Add `Authorization: Bearer {{apiToken}}` to use them.",
+      "item": [
+        {
+          "name": "GET /info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "info"
+              ]
+            },
+            "description": "Returns the active inbound configuration and the public host. Requires `X_PUBLIC_HOST` to be set on the server."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"flow\": \"xtls-rprx-vision\",\n  \"remark\": \"Admin-created account\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Creates a VLESS account for the supplied email without binding to a Telegram user. Empty `email` defaults to `user_<timestamp>@app`."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /users/:email",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userEmail}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userEmail}}"
+              ]
+            },
+            "description": "Deletes a VLESS account from Xray by email. Provide the literal email or URL-encode it if it contains special characters."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /users/:email/traffic",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userEmail}}/traffic?reset={{resetTraffic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userEmail}}",
+                "traffic"
+              ],
+              "query": [
+                {
+                  "key": "reset",
+                  "value": "{{resetTraffic}}",
+                  "description": "Set to `true` to reset counters while reading."
+                }
+              ]
+            },
+            "description": "Reads (and optionally resets) traffic counters for a VLESS account by email."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth (Telegram)",
+      "description": "JWT onboarding flow based on Telegram initData. Available only when the service is started with `BOT_TOKEN`.",
+      "item": [
+        {
+          "name": "POST /auth/telegram",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"initData\": \"{{telegramInitData}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/telegram",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "telegram"
+              ]
+            },
+            "description": "Validates Telegram initData, creates or loads the user, and issues access/refresh tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /auth/refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Exchanges a valid refresh token for a new access/refresh pair."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes all refresh sessions for the authenticated Telegram user."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Returns the Telegram profile stored in MongoDB along with the count of active VLESS accounts."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Accounts (JWT)",
+      "description": "Operations scoped to the authenticated Telegram user. All requests require `Authorization: Bearer {{jwtAccessToken}}`.",
+      "item": [
+        {
+          "name": "GET /api/accounts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts"
+              ]
+            },
+            "description": "Lists all active VLESS accounts for the Telegram user, including cached traffic totals."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/accounts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remark\": \"My main device\",\n  \"flow\": \"xtls-rprx-vision\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts"
+              ]
+            },
+            "description": "Creates a new VLESS account for the authenticated Telegram user. Respects the per-user account limit configured in the service."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/accounts/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts/{{accountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{accountId}}"
+              ]
+            },
+            "description": "Returns details for a specific account, fetching fresh traffic data from Xray."
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /api/accounts/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remark\": \"Updated remark\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts/{{accountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{accountId}}"
+              ]
+            },
+            "description": "Updates the remark for an account and rebuilds its VLESS link."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/accounts/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts/{{accountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{accountId}}"
+              ]
+            },
+            "description": "Deletes the selected VLESS account for the Telegram user."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/accounts/:id/traffic",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts/{{accountId}}/traffic?reset={{resetTraffic}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{accountId}}",
+                "traffic"
+              ],
+              "query": [
+                {
+                  "key": "reset",
+                  "value": "{{resetTraffic}}",
+                  "description": "Set to `true` to reset counters while reading."
+                }
+              ]
+            },
+            "description": "Fetches current traffic stats and the last 7 history snapshots. Optionally resets counters."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/accounts/:id/traffic/reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts/{{accountId}}/traffic/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{accountId}}",
+                "traffic",
+                "reset"
+              ]
+            },
+            "description": "Forces an immediate traffic reset and returns the fresh counters."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/accounts/:id/qr",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accounts/{{accountId}}/qr",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{accountId}}",
+                "qr"
+              ]
+            },
+            "description": "Returns a base64-encoded PNG QR code for the account's VLESS link."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "apiToken",
+      "value": "CHANGE_ME_API_TOKEN"
+    },
+    {
+      "key": "jwtAccessToken",
+      "value": "CHANGE_ME_ACCESS_TOKEN"
+    },
+    {
+      "key": "refreshToken",
+      "value": "CHANGE_ME_REFRESH_TOKEN"
+    },
+    {
+      "key": "telegramInitData",
+      "value": ""
+    },
+    {
+      "key": "accountId",
+      "value": "ACCOUNT_OBJECT_ID"
+    },
+    {
+      "key": "userEmail",
+      "value": "user@example.com"
+    },
+    {
+      "key": "resetTraffic",
+      "value": "false"
+    }
+  ]
+}
