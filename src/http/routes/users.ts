@@ -48,7 +48,7 @@ export function createUsersRouter(
       const flow = req.body?.flow?.toString();
       const remark = req.body?.remark?.toString();
 
-      const result = await service.createUser({ email, flow, remark });
+      const result = await service.createAdminUser({ email, flow, remark });
       res.json(result);
     } catch (err: any) {
       console.error("[POST /users] error:", err);
@@ -64,7 +64,7 @@ export function createUsersRouter(
     async (req: Request, res: Response) => {
       try {
         const email = decodeURIComponent(req.params.email);
-        await service.deleteUser(email);
+        await service.deleteUserByEmail(email);
         res.json({ ok: true, email });
       } catch (err: any) {
         console.error("[DELETE /users/:email] error:", err);
@@ -82,7 +82,7 @@ export function createUsersRouter(
       try {
         const email = decodeURIComponent(req.params.email);
         const reset = String(req.query.reset || "false") === "true";
-        const stats = await service.getTraffic(email, reset);
+        const stats = await service.getTrafficByEmail(email, reset);
         res.json({ email, ...stats, resetApplied: !!reset });
       } catch (err: any) {
         console.error("[GET /users/:email/traffic] error:", err);
