@@ -19,6 +19,7 @@ const API_TOKEN = process.env.API_TOKEN || "";
 const INBOUND_TAG = process.env.X_IN_TAG;
 const PUBLIC_HOST = process.env.X_PUBLIC_HOST || "";
 const CORS_ORIGIN = process.env.CORS_ORIGIN;
+
 const PROTO_DIR = path.resolve(process.cwd(), "proto");
 const PROTO_FILES = [
   path.join(PROTO_DIR, "app/proxyman/command/command.proto"),
@@ -27,6 +28,29 @@ const PROTO_FILES = [
   path.join(PROTO_DIR, "common/protocol/user.proto"),
   path.join(PROTO_DIR, "proxy/vless/account.proto"),
 ];
+
+// MongoDB
+const MONGO_URI =
+  process.env.MONGO_URI || "mongodb://localhost:27017/xray-provisioner";
+
+// JWT
+const JWT_SECRET = process.env.JWT_SECRET || "";
+const JWT_ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY || "15m";
+const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || "7d";
+
+// Telegram
+const BOT_TOKEN = process.env.BOT_TOKEN || "";
+const TELEGRAM_MINI_APP_URL = process.env.TELEGRAM_MINI_APP_URL || "";
+
+// User Limits
+const MAX_ACCOUNTS_PER_USER = parseInt(
+  process.env.MAX_ACCOUNTS_PER_USER || "5",
+  10
+);
+const DEFAULT_ACCOUNT_EXPIRY_DAYS = parseInt(
+  process.env.DEFAULT_ACCOUNT_EXPIRY_DAYS || "30",
+  10
+);
 
 export const config = {
   HTTP_ADDR,
@@ -42,6 +66,14 @@ export const config = {
   PUBLIC_HOST,
   CORS_ORIGIN,
   PROTO_FILES,
+  MONGO_URI,
+  JWT_SECRET,
+  JWT_ACCESS_EXPIRY,
+  JWT_REFRESH_EXPIRY,
+  BOT_TOKEN,
+  TELEGRAM_MINI_APP_URL,
+  MAX_ACCOUNTS_PER_USER,
+  DEFAULT_ACCOUNT_EXPIRY_DAYS,
 } as const;
 
 export type AppConfig = typeof config;
