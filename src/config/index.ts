@@ -1,5 +1,6 @@
 import path from "path";
 import dotenv from "dotenv";
+import type { SignOptions } from "jsonwebtoken";
 
 dotenv.config();
 
@@ -35,8 +36,10 @@ const MONGO_URI =
 
 // JWT
 const JWT_SECRET = process.env.JWT_SECRET || "";
-const JWT_ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY || "15m";
-const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || "7d";
+const JWT_ACCESS_EXPIRY: SignOptions["expiresIn"] =
+  (process.env.JWT_ACCESS_EXPIRY || "15m") as SignOptions["expiresIn"];
+const JWT_REFRESH_EXPIRY: SignOptions["expiresIn"] =
+  (process.env.JWT_REFRESH_EXPIRY || "7d") as SignOptions["expiresIn"];
 
 // Telegram
 const BOT_TOKEN = process.env.BOT_TOKEN || "";

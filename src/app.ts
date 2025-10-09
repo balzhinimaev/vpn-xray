@@ -5,10 +5,14 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 
 import { createUsersRouter } from "./http/routes/users.js";
+import { createAuthRouter } from "./http/routes/auth.js";
+import { createJWTMiddleware, JWTService } from "./auth/jwtService.js";
 import { XrayService } from "./services/xrayService.js";
 
 export interface AppOptions {
   service: XrayService;
+  jwtService: JWTService;
+  botToken?: string;
   apiToken: string;
   corsOrigin?: string;
 }
@@ -28,7 +32,7 @@ function createAuthMiddleware(apiToken: string) {
 }
 
 export function createApp(options: AppOptions) {
-  const { service, apiToken, corsOrigin } = options;
+  const { service, jwtService, botToken, apiToken, corsOrigin } = options;
   const app = express();
 
   const trustProxyEnv = process.env.TRUST_PROXY?.split(",")
@@ -66,8 +70,21 @@ export function createApp(options: AppOptions) {
     res.json({ ok: true });
   });
 
-  const requireAuth = createAuthMiddleware(apiToken);
-  app.use("/", createUsersRouter(service, { requireAuth }));
+  const requireApiTokenAuth = createAuthMiddleware(apiToken);
+  const requireJWTAuth = createJWTMiddleware(jwtService);
+
+  if (botToken) {
+    app.use(
+      "/auth",
+      createAuthRouter({
+        jwtService,
+        botToken,
+        requireAuth: requireJWTAuth,
+      })
+    );
+  }
+
+  app.use("/", createUsersRouter(service, { requireAuth: requireApiTokenAuth }));
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error("[ERROR]", err);

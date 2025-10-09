@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import type { SignOptions } from "jsonwebtoken";
 import { Types } from "mongoose";
 import { Request, Response, NextFunction } from "express";
 
@@ -10,16 +11,18 @@ export interface JWTPayload {
   exp?: number;
 }
 
+type JwtExpiry = SignOptions["expiresIn"];
+
 export interface JWTConfig {
   secret: string;
-  accessExpiry: string;
-  refreshExpiry: string;
+  accessExpiry: JwtExpiry;
+  refreshExpiry: JwtExpiry;
 }
 
 export class JWTService {
   private readonly secret: string;
-  private readonly accessExpiry: string;
-  private readonly refreshExpiry: string;
+  private readonly accessExpiry: JwtExpiry;
+  private readonly refreshExpiry: JwtExpiry;
 
   constructor(config: JWTConfig) {
     if (!config.secret || config.secret.length < 32) {
