@@ -18,9 +18,10 @@ export function createAccountsRouter(
    * GET /api/accounts
    * Получить все аккаунты текущего пользователя
    */
-  router.get("/", requireAuth, async (req: any, res: Response) => {
+  router.get("/", requireAuth, async (req: Request, res: Response) => {
     try {
-      const accounts = await service.getUserAccounts(req.telegramId);
+      const telegramId = req.telegramId!;
+      const accounts = await service.getUserAccounts(telegramId);
 
       // Добавляем трафик из кэша
       const accountsWithTraffic = await Promise.all(
@@ -54,13 +55,13 @@ export function createAccountsRouter(
    * POST /api/accounts
    * Создать новый аккаунт
    */
-  router.post("/", requireAuth, async (req: any, res: Response) => {
+  router.post("/", requireAuth, async (req: Request, res: Response) => {
     try {
       const { remark, flow } = req.body;
 
       const result = await service.createUser({
-        userId: req.userId,
-        telegramId: req.telegramId,
+        userId: req.userId!,
+        telegramId: req.telegramId!,
         flow,
         remark,
       });
@@ -78,9 +79,10 @@ export function createAccountsRouter(
    * GET /api/accounts/:id
    * Получить детали аккаунта
    */
-  router.get("/:id", requireAuth, async (req: any, res: Response) => {
+  router.get("/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const accounts = await service.getUserAccounts(req.telegramId);
+      const telegramId = req.telegramId!;
+      const accounts = await service.getUserAccounts(telegramId);
       const account = accounts.find((a) => a.id === req.params.id);
 
       if (!account) {
@@ -90,7 +92,7 @@ export function createAccountsRouter(
       // Получаем актуальный трафик из Xray
       const trafficData = await service.getTraffic(
         account.id,
-        req.telegramId,
+        req.telegramId!,
         false
       );
 
@@ -112,7 +114,7 @@ export function createAccountsRouter(
    * PATCH /api/accounts/:id
    * Обновить аккаунт (remark)
    */
-  router.patch("/:id", requireAuth, async (req: any, res: Response) => {
+  router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const { remark } = req.body;
 
@@ -120,7 +122,11 @@ export function createAccountsRouter(
         return res.status(400).json({ error: "remark is required" });
       }
 
-      await service.updateAccountRemark(req.params.id, req.telegramId, remark);
+      await service.updateAccountRemark(
+        req.params.id,
+        req.telegramId!,
+        remark
+      );
 
       res.json({ ok: true, message: "Remark updated" });
     } catch (error: any) {
@@ -133,9 +139,9 @@ export function createAccountsRouter(
    * DELETE /api/accounts/:id
    * Удалить аккаунт
    */
-  router.delete("/:id", requireAuth, async (req: any, res: Response) => {
+  router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      await service.deleteUser(req.params.id, req.telegramId);
+      await service.deleteUser(req.params.id, req.telegramId!);
       res.json({ ok: true, message: "Account deleted" });
     } catch (error: any) {
       console.error("[DELETE /api/accounts/:id] error:", error);
@@ -149,12 +155,12 @@ export function createAccountsRouter(
    * GET /api/accounts/:id/traffic
    * Получить статистику трафика
    */
-  router.get("/:id/traffic", requireAuth, async (req: any, res: Response) => {
+  router.get("/:id/traffic", requireAuth, async (req: Request, res: Response) => {
     try {
       const reset = String(req.query.reset || "false") === "true";
       const trafficData = await service.getTraffic(
         req.params.id,
-        req.telegramId,
+        req.telegramId!,
         reset
       );
 
@@ -184,11 +190,11 @@ export function createAccountsRouter(
   router.post(
     "/:id/traffic/reset",
     requireAuth,
-    async (req: any, res: Response) => {
+    async (req: Request, res: Response) => {
       try {
         const trafficData = await service.getTraffic(
           req.params.id,
-          req.telegramId,
+          req.telegramId!,
           true
         );
 
@@ -208,9 +214,10 @@ export function createAccountsRouter(
    * GET /api/accounts/:id/qr
    * Получить QR-код для ссылки
    */
-  router.get("/:id/qr", requireAuth, async (req: any, res: Response) => {
+  router.get("/:id/qr", requireAuth, async (req: Request, res: Response) => {
     try {
-      const accounts = await service.getUserAccounts(req.telegramId);
+      const telegramId = req.telegramId!;
+      const accounts = await service.getUserAccounts(telegramId);
       const account = accounts.find((a) => a.id === req.params.id);
 
       if (!account) {
