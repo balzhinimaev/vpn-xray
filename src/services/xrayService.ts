@@ -327,7 +327,7 @@ export class XrayService {
       uuid: acc.uuid,
       remark: acc.remark,
       link: acc.link,
-      flow: acc.flow,
+      flow: acc.flow ?? undefined,
       security: acc.security,
       port: acc.port,
       createdAt: acc.createdAt,
@@ -360,7 +360,7 @@ export class XrayService {
     const { link, raw } = buildVlessURI({
       uuid: account.uuid,
       email: account.email,
-      flow: account.flow,
+      flow: account.flow ?? undefined,
       remark,
       inbound: this.inbound,
       publicHost: this.publicHost,
