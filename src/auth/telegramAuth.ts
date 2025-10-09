@@ -15,6 +15,7 @@ export interface ParsedInitData {
   auth_date: number;
   hash: string;
   query_id?: string;
+  raw: Record<string, string>;
   [key: string]: any;
 }
 
@@ -24,8 +25,10 @@ export interface ParsedInitData {
 export function parseInitData(initData: string): ParsedInitData {
   const params = new URLSearchParams(initData);
   const result: any = {};
+  const rawValues: Record<string, string> = {};
 
   for (const [key, value] of params.entries()) {
+    rawValues[key] = value;
     if (key === "user") {
       try {
         result.user = JSON.parse(value);
@@ -43,6 +46,7 @@ export function parseInitData(initData: string): ParsedInitData {
     throw new Error("Missing required fields in initData");
   }
 
+  result.raw = rawValues;
   return result as ParsedInitData;
 }
 
@@ -60,7 +64,7 @@ export function validateTelegramInitData(
   }
 
   const parsed = parseInitData(initData);
-  const { hash, auth_date, ...dataToCheck } = parsed;
+  const { hash, auth_date, raw } = parsed;
 
   // Проверка времени жизни
   const now = Math.floor(Date.now() / 1000);
@@ -69,13 +73,12 @@ export function validateTelegramInitData(
   }
 
   // Создаём строку для проверки подписи
-  const dataCheckString = Object.keys(dataToCheck)
+  const dataCheckString = Object.keys(raw)
+    .filter((key) => key !== "hash")
     .sort()
     .map((key) => {
-      const value = dataToCheck[key];
-      return `${key}=${
-        typeof value === "object" ? JSON.stringify(value) : value
-      }`;
+      const value = raw[key];
+      return `${key}=${value}`;
     })
     .join("\n");
 
