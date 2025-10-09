@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 
 import { createUsersRouter } from "./http/routes/users.js";
 import { createAuthRouter } from "./http/routes/auth.js";
+import { createAccountsRouter } from "./http/routes/accounts.js";
 import { createJWTMiddleware, JWTService } from "./auth/jwtService.js";
 import { XrayService } from "./services/xrayService.js";
 
@@ -52,7 +53,9 @@ export function createApp(options: AppOptions) {
     app.use(
       cors({
         origin: corsOrigin.split(",").map((s) => s.trim()),
-        credentials: false,
+        credentials: true,
+        methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
       })
     );
   }
@@ -63,6 +66,7 @@ export function createApp(options: AppOptions) {
       max: 60,
       standardHeaders: true,
       legacyHeaders: false,
+      skip: (req) => req.method === "OPTIONS",
     })
   );
 
@@ -83,6 +87,12 @@ export function createApp(options: AppOptions) {
       })
     );
   }
+
+  app.use(
+    "/api/accounts",
+    requireJWTAuth,
+    createAccountsRouter(service, { requireAuth: requireJWTAuth })
+  );
 
   app.use("/", createUsersRouter(service, { requireAuth: requireApiTokenAuth }));
 
