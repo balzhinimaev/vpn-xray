@@ -35,6 +35,12 @@ export interface CreateUserInput {
   remark?: string;
 }
 
+export interface CreateAdminUserInput {
+  email: string;
+  flow?: string;
+  remark?: string;
+}
+
 export interface CreateUserResult {
   id: string;
   uuid: string;
@@ -191,6 +197,44 @@ export class XrayService {
     };
   }
 
+  async createAdminUser(
+    input: CreateAdminUserInput
+  ): Promise<CreateUserResult> {
+    this.ensurePublicHost();
+
+    const uuid = this.uuidFn();
+    const email = input.email;
+    const flow = input.flow || this.defaultFlow;
+
+    await this.client.addUser({
+      tag: this.inbound.tag,
+      email,
+      uuid,
+      flow,
+      level: 0,
+    });
+
+    const { link, raw } = buildVlessURI({
+      uuid,
+      email,
+      flow,
+      remark: input.remark,
+      inbound: this.inbound,
+      publicHost: this.publicHost,
+    });
+
+    return {
+      id: email,
+      uuid,
+      email,
+      inboundTag: this.inbound.tag,
+      port: this.inbound.port,
+      security: this.inbound.security,
+      link,
+      raw,
+    };
+  }
+
   /**
    * Удаляет аккаунт по ID (с проверкой владельца)
    */
@@ -211,6 +255,10 @@ export class XrayService {
     // Помечаем как неактивный (soft delete)
     account.isActive = false;
     await account.save();
+  }
+
+  async deleteUserByEmail(email: string): Promise<void> {
+    await this.client.removeUser(this.inbound.tag, email);
   }
 
   /**
@@ -245,6 +293,18 @@ export class XrayService {
     return {
       accountId: account._id.toString(),
       email: account.email,
+      uplink: stats.uplink,
+      downlink: stats.downlink,
+      total: stats.uplink + stats.downlink,
+      resetApplied: reset,
+    };
+  }
+
+  async getTrafficByEmail(email: string, reset: boolean = false) {
+    const stats = await this.client.getTraffic(email, reset);
+
+    return {
+      email,
       uplink: stats.uplink,
       downlink: stats.downlink,
       total: stats.uplink + stats.downlink,
