@@ -37,6 +37,8 @@ const sessionSchema = new Schema(
   { timestamps: true }
 );
 
+sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 export type SessionSchemaType = InferSchemaType<typeof sessionSchema>;
 export type SessionDocument = HydratedDocument<SessionSchemaType>;
 export const Session: Model<SessionSchemaType> =

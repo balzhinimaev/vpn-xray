@@ -44,7 +44,7 @@ export function createAuthRouter(options: AuthRouteOptions) {
         );
 
         // Сохраняем refresh token в БД
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 дней
+        const expiresAt = jwtService.getRefreshExpiresAt();
         await Session.create({
           userId: user._id,
           telegramId: user.telegramId,

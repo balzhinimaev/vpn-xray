@@ -13,6 +13,41 @@ export interface JWTPayload {
 
 type JwtExpiry = SignOptions["expiresIn"];
 
+const EXPIRY_UNITS_IN_MS: Record<string, number> = {
+  ms: 1,
+  s: 1000,
+  m: 60 * 1000,
+  h: 60 * 60 * 1000,
+  d: 24 * 60 * 60 * 1000,
+  w: 7 * 24 * 60 * 60 * 1000,
+  y: 365.25 * 24 * 60 * 60 * 1000,
+};
+
+export function expiresInToMilliseconds(expiry: JwtExpiry): number {
+  if (typeof expiry === "number" && Number.isFinite(expiry)) {
+    return expiry * 1000;
+  }
+
+  if (typeof expiry === "string") {
+    const trimmed = expiry.trim().toLowerCase();
+
+    if (/^\d+$/.test(trimmed)) {
+      return parseInt(trimmed, 10) * 1000;
+    }
+
+    const match = trimmed.match(/^([\d.]+)\s*(ms|s|m|h|d|w|y)$/);
+    if (match) {
+      const value = Number(match[1]);
+      const unit = match[2];
+      if (!Number.isNaN(value)) {
+        return value * EXPIRY_UNITS_IN_MS[unit];
+      }
+    }
+  }
+
+  throw new Error(`Unsupported expiresIn format: ${String(expiry)}`);
+}
+
 export interface JWTConfig {
   secret: string;
   accessExpiry: JwtExpiry;
@@ -127,6 +162,11 @@ export class JWTService {
       accessToken: this.generateAccessToken(userId, telegramId),
       refreshToken: this.generateRefreshToken(userId, telegramId),
     };
+  }
+
+  getRefreshExpiresAt(referenceDate: Date = new Date()): Date {
+    const ms = expiresInToMilliseconds(this.refreshExpiry);
+    return new Date(referenceDate.getTime() + ms);
   }
 
   /**
