@@ -357,10 +357,12 @@ export class XrayService {
     account.remark = remark;
 
     // Пересобираем ссылку с новым remark
+    const flow = account.flow ?? undefined;
+
     const { link, raw } = buildVlessURI({
       uuid: account.uuid,
       email: account.email,
-      flow: account.flow ?? undefined,
+      flow,
       remark,
       inbound: this.inbound,
       publicHost: this.publicHost,
