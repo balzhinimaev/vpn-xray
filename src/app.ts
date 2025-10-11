@@ -55,7 +55,11 @@ export function createApp(options: AppOptions) {
         origin: corsOrigin.split(",").map((s) => s.trim()),
         credentials: true,
         methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: [
+          "Content-Type",
+          "Authorization",
+          "Telegram-Web-App-Data",
+        ],
       })
     );
   }
