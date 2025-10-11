@@ -14,6 +14,7 @@ services:
       NODE_ENV: production
       HTTP_ADDR: 0.0.0.0:8080
       GRPC_ADDR: 127.0.0.1:10085
+      CORS_ORIGIN: https://anoname.ru
       X_PUBLIC_HOST: ${X_PUBLIC_HOST}
       X_IN_TAG: ${X_IN_TAG}
       X_DEFAULT_FLOW: ${X_DEFAULT_FLOW:-xtls-rprx-vision}
