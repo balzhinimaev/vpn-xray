@@ -15,6 +15,7 @@ const userSchema = new Schema(
     languageCode: { type: String },
     isPremium: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
+    telegram_min_app_opened: { type: Boolean, default: false },
     lastSeenAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

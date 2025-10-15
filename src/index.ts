@@ -85,6 +85,7 @@ async function bootstrap() {
     service,
     jwtService,
     botToken: config.BOT_TOKEN,
+    botRegistrationSecret: config.BOT_REGISTRATION_SECRET,
     apiToken: config.API_TOKEN,
     corsOrigin: config.CORS_ORIGIN,
   });

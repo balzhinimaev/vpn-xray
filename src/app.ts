@@ -14,6 +14,7 @@ export interface AppOptions {
   service: XrayService;
   jwtService: JWTService;
   botToken?: string;
+  botRegistrationSecret?: string;
   apiToken: string;
   corsOrigin?: string;
 }
@@ -33,7 +34,7 @@ function createAuthMiddleware(apiToken: string) {
 }
 
 export function createApp(options: AppOptions) {
-  const { service, jwtService, botToken, apiToken, corsOrigin } = options;
+  const { service, jwtService, botToken, botRegistrationSecret, apiToken, corsOrigin } = options;
   const app = express();
 
   const trustProxyEnv = process.env.TRUST_PROXY?.split(",")
@@ -87,6 +88,7 @@ export function createApp(options: AppOptions) {
       createAuthRouter({
         jwtService,
         botToken,
+        botRegistrationSecret: botRegistrationSecret || "",
         requireAuth: requireJWTAuth,
       })
     );

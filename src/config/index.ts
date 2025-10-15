@@ -44,6 +44,7 @@ const JWT_REFRESH_EXPIRY: SignOptions["expiresIn"] =
 // Telegram
 const BOT_TOKEN = process.env.BOT_TOKEN || "";
 const TELEGRAM_MINI_APP_URL = process.env.TELEGRAM_MINI_APP_URL || "";
+const BOT_REGISTRATION_SECRET = process.env.BOT_REGISTRATION_SECRET || "";
 
 // User Limits
 const MAX_ACCOUNTS_PER_USER = parseInt(
@@ -75,6 +76,7 @@ export const config = {
   JWT_REFRESH_EXPIRY,
   BOT_TOKEN,
   TELEGRAM_MINI_APP_URL,
+  BOT_REGISTRATION_SECRET,
   MAX_ACCOUNTS_PER_USER,
   DEFAULT_ACCOUNT_EXPIRY_DAYS,
 } as const;

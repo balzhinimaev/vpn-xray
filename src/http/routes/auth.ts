@@ -7,14 +7,26 @@ import { Session } from "../../models/index.js";
 export interface AuthRouteOptions {
   jwtService: JWTService;
   botToken: string;
+  botRegistrationSecret: string;
   requireAuth?: (req: Request, res: Response, next: any) => void;
 }
 
 export function createAuthRouter(options: AuthRouteOptions) {
-  const { jwtService, botToken, requireAuth } = options;
+  const { jwtService, botToken, botRegistrationSecret, requireAuth } = options;
   const router = Router();
 
   const validateInitData = createTelegramInitDataValidator(botToken);
+
+  /**
+   * Middleware для проверки секрета регистрации бота
+   */
+  const validateBotSecret = (req: Request, res: Response, next: any) => {
+    const secret = req.headers['x-bot-secret'] || req.body?.secret;
+    if (!secret || secret !== botRegistrationSecret) {
+      return res.status(401).json({ error: "Invalid bot registration secret" });
+    }
+    next();
+  };
 
   /**
    * POST /auth/telegram
@@ -67,6 +79,74 @@ export function createAuthRouter(options: AuthRouteOptions) {
         });
       } catch (error: any) {
         console.error("[POST /auth/telegram] error:", error);
+        res.status(500).json({ error: error.message || "Internal error" });
+      }
+    }
+  );
+
+  /**
+   * POST /auth/bot-register
+   * Регистрация пользователя напрямую из Telegram бота
+   */
+  router.post(
+    "/bot-register",
+    validateBotSecret,
+    async (req: Request, res: Response) => {
+      try {
+        const { telegramId, username, firstName, lastName, languageCode, isPremium } = req.body;
+
+        if (!telegramId) {
+          return res.status(400).json({ error: "telegramId is required" });
+        }
+
+        // Создаем payload для findOrCreateUser
+        const telegramUserPayload = {
+          id: telegramId,
+          username,
+          first_name: firstName,
+          last_name: lastName,
+          language_code: languageCode,
+          is_premium: isPremium || false,
+        };
+
+        // Найти или создать пользователя
+        const user = await findOrCreateUser(telegramUserPayload);
+
+        if (user.isBlocked) {
+          return res.status(403).json({ error: "User is blocked" });
+        }
+
+        // Генерируем токены
+        const { accessToken, refreshToken } = jwtService.generateTokenPair(
+          user._id,
+          user.telegramId
+        );
+
+        // Сохраняем refresh token в БД
+        const expiresAt = jwtService.getRefreshExpiresAt();
+        await Session.create({
+          userId: user._id,
+          telegramId: user.telegramId,
+          refreshToken,
+          expiresAt,
+          deviceInfo: req.headers["user-agent"] || "telegram-bot",
+        });
+
+        res.json({
+          accessToken,
+          refreshToken,
+          user: {
+            id: user._id,
+            telegramId: user.telegramId,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            isPremium: user.isPremium,
+            telegram_min_app_opened: user.telegram_min_app_opened,
+          },
+        });
+      } catch (error: any) {
+        console.error("[POST /auth/bot-register] error:", error);
         res.status(500).json({ error: error.message || "Internal error" });
       }
     }
