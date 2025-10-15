@@ -109,8 +109,26 @@ export function createAuthRouter(options: AuthRouteOptions) {
           is_premium: isPremium || false,
         };
 
+        console.log("[POST /auth/bot-register] Looking for user with telegramId:", telegramId);
+        
+        // Проверим, существует ли пользователь
+        const { User } = await import("../../models/index.js");
+        const existingUser = await User.findOne({ telegramId: telegramId.toString() });
+        console.log("[POST /auth/bot-register] Existing user found:", existingUser ? {
+          id: existingUser._id,
+          telegramId: existingUser.telegramId,
+          createdAt: existingUser.createdAt
+        } : "No existing user");
+        
         // Найти или создать пользователя
         const user = await findOrCreateUser(telegramUserPayload);
+        
+        console.log("[POST /auth/bot-register] User found/created:", {
+          id: user._id,
+          telegramId: user.telegramId,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        });
 
         if (user.isBlocked) {
           return res.status(403).json({ error: "User is blocked" });

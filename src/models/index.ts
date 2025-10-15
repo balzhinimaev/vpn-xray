@@ -122,6 +122,9 @@ export async function findOrCreateUser(
   const telegramId = normalizeTelegramId(payload.id);
   const now = new Date();
 
+  console.log("[findOrCreateUser] Input payload:", payload);
+  console.log("[findOrCreateUser] Normalized telegramId:", telegramId);
+
   const update: Partial<UserSchemaType> = {
     telegramId,
     username: payload.username ?? undefined,
@@ -132,11 +135,22 @@ export async function findOrCreateUser(
     lastSeenAt: now,
   };
 
-  return User.findOneAndUpdate({ telegramId }, update, {
+  console.log("[findOrCreateUser] Update object:", update);
+
+  const result = await User.findOneAndUpdate({ telegramId }, update, {
     new: true,
     upsert: true,
     setDefaultsOnInsert: true,
   }).exec();
+
+  console.log("[findOrCreateUser] Result:", {
+    id: result._id,
+    telegramId: result.telegramId,
+    createdAt: result.createdAt,
+    updatedAt: result.updatedAt
+  });
+
+  return result;
 }
 
 export async function getUserAccountsCount(
