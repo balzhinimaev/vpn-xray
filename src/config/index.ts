@@ -56,6 +56,24 @@ const DEFAULT_ACCOUNT_EXPIRY_DAYS = parseInt(
   10
 );
 
+// Trial & Subscription
+const TRIAL_PERIOD_HOURS = parseInt(
+  process.env.TRIAL_PERIOD_HOURS || "3",
+  10
+);
+const TRIAL_TRAFFIC_LIMIT_GB = parseInt(
+  process.env.TRIAL_TRAFFIC_LIMIT_GB || "10",
+  10
+);
+const SUBSCRIPTION_MONTHLY_DAYS = parseInt(
+  process.env.SUBSCRIPTION_MONTHLY_DAYS || "30",
+  10
+);
+
+// Notification Settings
+const NOTIFICATION_EXPIRY_DAYS_BEFORE = [3, 1]; // За сколько дней до истечения отправлять напоминания (для подписок)
+const NOTIFICATION_EXPIRY_HOURS_BEFORE = [2, 1]; // За сколько часов до истечения отправлять напоминания (для триала)
+
 export const config = {
   HTTP_ADDR,
   HTTP_HOST,
@@ -79,6 +97,11 @@ export const config = {
   BOT_REGISTRATION_SECRET,
   MAX_ACCOUNTS_PER_USER,
   DEFAULT_ACCOUNT_EXPIRY_DAYS,
+  TRIAL_PERIOD_HOURS,
+  TRIAL_TRAFFIC_LIMIT_GB,
+  SUBSCRIPTION_MONTHLY_DAYS,
+  NOTIFICATION_EXPIRY_DAYS_BEFORE,
+  NOTIFICATION_EXPIRY_HOURS_BEFORE,
 } as const;
 
 export type AppConfig = typeof config;

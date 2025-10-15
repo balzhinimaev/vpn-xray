@@ -3,16 +3,19 @@ import { JWTService } from "../../auth/jwtService.js";
 import { createTelegramInitDataValidator } from "../../auth/telegramAuth.js";
 import { findOrCreateUser } from "../../models/index.js";
 import { Session } from "../../models/index.js";
+import { XrayService } from "../../services/xrayService.js";
+import { config } from "../../config/index.js";
 
 export interface AuthRouteOptions {
   jwtService: JWTService;
+  xrayService: XrayService;
   botToken: string;
   botRegistrationSecret: string;
   requireAuth?: (req: Request, res: Response, next: any) => void;
 }
 
 export function createAuthRouter(options: AuthRouteOptions) {
-  const { jwtService, botToken, botRegistrationSecret, requireAuth } = options;
+  const { jwtService, xrayService, botToken, botRegistrationSecret, requireAuth } = options;
   const router = Router();
 
   const validateInitData = createTelegramInitDataValidator(botToken);
@@ -87,6 +90,7 @@ export function createAuthRouter(options: AuthRouteOptions) {
   /**
    * POST /auth/bot-register
    * Регистрация пользователя напрямую из Telegram бота
+   * Автоматически создает VLESS аккаунт для нового пользователя
    */
   router.post(
     "/bot-register",
@@ -109,19 +113,41 @@ export function createAuthRouter(options: AuthRouteOptions) {
           is_premium: isPremium || false,
         };
 
-        console.log("[POST /auth/bot-register] Looking for user with telegramId:", telegramId);
+        console.log("[POST /auth/bot-register] Processing registration for telegramId:", telegramId);
         
-        // Проверим, существует ли пользователь
-        const { User } = await import("../../models/index.js");
+        // Проверим, существует ли пользователь (чтобы определить, нужно ли создавать VLESS)
+        const { User, VlessAccount, Subscription, NotificationLog } = await import("../../models/index.js");
         const existingUser = await User.findOne({ telegramId: telegramId.toString() });
-        console.log("[POST /auth/bot-register] Existing user found:", existingUser ? {
-          id: existingUser._id,
-          telegramId: existingUser.telegramId,
-          createdAt: existingUser.createdAt
-        } : "No existing user");
+        const isNewUser = !existingUser;
+        
+        console.log("[POST /auth/bot-register] User status:", isNewUser ? "NEW USER" : "EXISTING USER");
         
         // Найти или создать пользователя
         const user = await findOrCreateUser(telegramUserPayload);
+        
+        // Устанавливаем тестовый период для нового пользователя
+        if (isNewUser && !user.trialEndsAt) {
+          const trialEndsAt = new Date();
+          trialEndsAt.setHours(trialEndsAt.getHours() + config.TRIAL_PERIOD_HOURS);
+          
+          user.subscriptionStatus = "trial";
+          user.trialEndsAt = trialEndsAt;
+          await user.save();
+          
+          // Создаем запись о тестовой подписке
+          await Subscription.create({
+            userId: user._id,
+            telegramId: user.telegramId,
+            type: "trial",
+            status: "active",
+            startsAt: new Date(),
+            endsAt: trialEndsAt,
+            price: 0,
+            currency: "RUB",
+          });
+          
+          console.log(`[POST /auth/bot-register] Trial period set until ${trialEndsAt.toISOString()}`);
+        }
         
         console.log("[POST /auth/bot-register] User found/created:", {
           id: user._id,
@@ -150,6 +176,62 @@ export function createAuthRouter(options: AuthRouteOptions) {
           deviceInfo: req.headers["user-agent"] || "telegram-bot",
         });
 
+        // Проверяем, есть ли у пользователя хотя бы один активный VLESS аккаунт
+        const existingAccounts = await VlessAccount.countDocuments({
+          userId: user._id,
+          isActive: true,
+        });
+
+        let vlessAccount = null;
+
+        // Если у пользователя нет активных аккаунтов, создаем первый
+        if (existingAccounts === 0) {
+          try {
+            console.log("[POST /auth/bot-register] Creating VLESS account for new user");
+            
+            const vlessResult = await xrayService.createUser({
+              userId: user._id,
+              telegramId: user.telegramId,
+              remark: username ? `@${username}` : `User ${telegramId}`,
+            });
+
+            vlessAccount = {
+              id: vlessResult.id,
+              uuid: vlessResult.uuid,
+              email: vlessResult.email,
+              link: vlessResult.link,
+              port: vlessResult.port,
+              security: vlessResult.security,
+              expiresAt: vlessResult.expiresAt,
+            };
+
+            console.log("[POST /auth/bot-register] VLESS account created:", vlessAccount.id);
+            
+            // Логируем приветственное уведомление для нового пользователя
+            if (isNewUser) {
+              await NotificationLog.create({
+                userId: user._id,
+                telegramId: user.telegramId,
+                type: "trial_welcome",
+                sentAt: new Date(),
+                success: true,
+                metadata: {
+                  trialHours: config.TRIAL_PERIOD_HOURS,
+                  vlessAccountId: vlessAccount.id,
+                },
+              }).catch((err) => {
+                console.error("[POST /auth/bot-register] Failed to log welcome notification:", err);
+              });
+            }
+          } catch (vlessError: any) {
+            console.error("[POST /auth/bot-register] Failed to create VLESS account:", vlessError);
+            // Не прерываем регистрацию из-за ошибки создания VLESS
+            // Пользователь сможет создать аккаунт позже
+          }
+        } else {
+          console.log(`[POST /auth/bot-register] User already has ${existingAccounts} active account(s)`);
+        }
+
         res.json({
           accessToken,
           refreshToken,
@@ -161,7 +243,11 @@ export function createAuthRouter(options: AuthRouteOptions) {
             lastName: user.lastName,
             isPremium: user.isPremium,
             telegram_min_app_opened: user.telegram_min_app_opened,
+            subscriptionStatus: user.subscriptionStatus,
+            trialEndsAt: user.trialEndsAt,
+            subscriptionEndsAt: user.subscriptionEndsAt,
           },
+          vlessAccount, // null если аккаунт уже был или произошла ошибка
         });
       } catch (error: any) {
         console.error("[POST /auth/bot-register] error:", error);

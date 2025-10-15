@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { createUsersRouter } from "./http/routes/users.js";
 import { createAuthRouter } from "./http/routes/auth.js";
 import { createAccountsRouter } from "./http/routes/accounts.js";
+import { createSubscriptionRouter } from "./http/routes/subscription.js";
 import { createJWTMiddleware, JWTService } from "./auth/jwtService.js";
 import { XrayService } from "./services/xrayService.js";
 
@@ -87,6 +88,7 @@ export function createApp(options: AppOptions) {
       "/auth",
       createAuthRouter({
         jwtService,
+        xrayService: service,
         botToken,
         botRegistrationSecret: botRegistrationSecret || "",
         requireAuth: requireJWTAuth,
@@ -98,6 +100,11 @@ export function createApp(options: AppOptions) {
     "/api/accounts",
     requireJWTAuth,
     createAccountsRouter(service, { requireAuth: requireJWTAuth })
+  );
+
+  app.use(
+    "/api/subscription",
+    createSubscriptionRouter({ requireAuth: requireJWTAuth, xrayService: service })
   );
 
   app.use("/", createUsersRouter(service, { requireAuth: requireApiTokenAuth }));

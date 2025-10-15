@@ -2,13 +2,16 @@ import mongoose from "mongoose";
 import { config } from "./config/index.js";
 import { pickVlessInbound } from "./xray/inbound.js";
 import { XrayService } from "./services/xrayService.js";
+import { SubscriptionScheduler } from "./services/subscriptionScheduler.js";
 import { JWTService } from "./auth/jwtService.js";
 import { createApp } from "./app.js";
 import { firstExternalIPv4 } from "./utils/network.js";
 
 async function connectMongoDB() {
   try {
-    await mongoose.connect(config.MONGO_URI);
+    await mongoose.connect(config.MONGO_URI, {
+      dbName: "xray-provisioner",
+    });
     console.log("[BOOT] MongoDB connected:", config.MONGO_URI);
 
     mongoose.connection.on("error", (err) => {
@@ -80,7 +83,27 @@ async function bootstrap() {
     defaultExpiryDays: config.DEFAULT_ACCOUNT_EXPIRY_DAYS,
   });
 
-  // 6. Создаём Express app
+  // 6. Инициализация планировщика подписок
+  const scheduler = new SubscriptionScheduler({
+    xrayService: service,
+    notificationCallback: async (notification) => {
+      // Здесь можно интегрировать отправку уведомлений в Telegram бота
+      const timeLeft = notification.hoursLeft
+        ? `${notification.hoursLeft} hour(s)`
+        : notification.daysLeft
+        ? `${notification.daysLeft} day(s)`
+        : "0";
+      console.log(
+        `[Notification] ${notification.type} for user ${notification.telegramId}: ${timeLeft} left`
+      );
+      // TODO: Интегрировать с Telegram Bot API для отправки реальных уведомлений
+    },
+  });
+
+  // Запускаем планировщик (проверка каждые 30 минут для часовых триалов)
+  scheduler.start(30 * 60 * 1000);
+
+  // 7. Создаём Express app
   const app = createApp({
     service,
     jwtService,
@@ -90,7 +113,7 @@ async function bootstrap() {
     corsOrigin: config.CORS_ORIGIN,
   });
 
-  // 7. Запускаем сервер
+  // 8. Запускаем сервер
   app.listen(config.HTTP_PORT, config.HTTP_HOST, () => {
     console.log(
       `[BOOT] 🚀 Server listening on http://${config.HTTP_HOST}:${config.HTTP_PORT}`
@@ -125,12 +148,14 @@ async function bootstrap() {
   // Graceful shutdown
   process.on("SIGTERM", async () => {
     console.log("[BOOT] SIGTERM received, closing connections...");
+    scheduler.stop();
     await mongoose.connection.close();
     process.exit(0);
   });
 
   process.on("SIGINT", async () => {
     console.log("[BOOT] SIGINT received, closing connections...");
+    scheduler.stop();
     await mongoose.connection.close();
     process.exit(0);
   });

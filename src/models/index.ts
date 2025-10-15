@@ -17,6 +17,15 @@ const userSchema = new Schema(
     isBlocked: { type: Boolean, default: false },
     telegram_min_app_opened: { type: Boolean, default: false },
     lastSeenAt: { type: Date, default: Date.now },
+    // Subscription management
+    subscriptionStatus: {
+      type: String,
+      enum: ["trial", "active", "expired", "cancelled"],
+      default: "trial",
+    },
+    trialEndsAt: { type: Date }, // Дата окончания тестового периода
+    subscriptionEndsAt: { type: Date }, // Дата окончания оплаченной подписки
+    lastNotificationSentAt: { type: Date }, // Последнее отправленное напоминание
   },
   { timestamps: true }
 );
@@ -102,6 +111,82 @@ export type TrafficDocument = HydratedDocument<TrafficSchemaType>;
 export const Traffic: Model<TrafficSchemaType> =
   mongoose.models.Traffic ??
   mongoose.model<TrafficSchemaType>("Traffic", trafficSchema);
+
+const subscriptionSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    telegramId: { type: String, required: true },
+    type: {
+      type: String,
+      enum: ["trial", "monthly", "quarterly", "yearly"],
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["active", "expired", "cancelled", "refunded"],
+      default: "active",
+    },
+    startsAt: { type: Date, required: true },
+    endsAt: { type: Date, required: true },
+    price: { type: Number, default: 0 }, // Цена в копейках/центах
+    currency: { type: String, default: "RUB" },
+    paymentProvider: { type: String }, // Telegram Stars, YooKassa, etc.
+    paymentId: { type: String }, // ID транзакции от провайдера
+    autoRenew: { type: Boolean, default: false },
+    cancelledAt: { type: Date },
+    cancelReason: { type: String },
+  },
+  { timestamps: true }
+);
+
+subscriptionSchema.index({ userId: 1, status: 1 });
+subscriptionSchema.index({ endsAt: 1 });
+
+export type SubscriptionSchemaType = InferSchemaType<typeof subscriptionSchema>;
+export type SubscriptionDocument = HydratedDocument<SubscriptionSchemaType>;
+export const Subscription: Model<SubscriptionSchemaType> =
+  mongoose.models.Subscription ??
+  mongoose.model<SubscriptionSchemaType>("Subscription", subscriptionSchema);
+
+const notificationLogSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    telegramId: { type: String, required: true },
+    type: {
+      type: String,
+      enum: [
+        "trial_welcome",
+        "trial_expires_3d",
+        "trial_expires_1d",
+        "trial_expired",
+        "subscription_expires_3d",
+        "subscription_expires_1d",
+        "subscription_expired",
+        "subscription_renewed",
+      ],
+      required: true,
+    },
+    sentAt: { type: Date, default: Date.now },
+    success: { type: Boolean, default: true },
+    errorMessage: { type: String },
+    metadata: { type: Schema.Types.Mixed }, // Дополнительные данные (текст, кнопки и т.д.)
+  },
+  { timestamps: true }
+);
+
+notificationLogSchema.index({ userId: 1, type: 1, sentAt: -1 });
+notificationLogSchema.index({ telegramId: 1, sentAt: -1 });
+
+export type NotificationLogSchemaType = InferSchemaType<
+  typeof notificationLogSchema
+>;
+export type NotificationLogDocument = HydratedDocument<NotificationLogSchemaType>;
+export const NotificationLog: Model<NotificationLogSchemaType> =
+  mongoose.models.NotificationLog ??
+  mongoose.model<NotificationLogSchemaType>(
+    "NotificationLog",
+    notificationLogSchema
+  );
 
 export interface TelegramUserPayload {
   id: number | string;
