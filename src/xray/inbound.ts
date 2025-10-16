@@ -74,7 +74,8 @@ export function pickVlessInbound(tagOverride?: string): InboundInfo {
         const out = execFileSync("xray", ["x25519", "-i", privateKey], {
           encoding: "utf8",
         });
-        const match = out.match(/Public key:\s*([A-Za-z0-9+/=\-_]+)/i);
+        // For REALITY, the public key is labeled as "Password:" in xray x25519 output
+        const match = out.match(/Password:\s*([A-Za-z0-9+/=\-_]+)/i);
         if (match && match[1]) info.pbk = match[1].trim();
       } catch (err) {
         if (envPBK) info.pbk = envPBK;

@@ -21,6 +21,10 @@ services:
       API_TOKEN: ${API_TOKEN}
       X_PBK: ${X_PBK}
       BOT_REGISTRATION_SECRET: ${BOT_REGISTRATION_SECRET}
+      MONGO_URI: ${MONGO_URI}
+      BOT_TOKEN: ${BOT_TOKEN}
+      JWT_SECRET: ${JWT_SECRET}
+      X_REALITY_PRIVATE_KEY: ${X_REALITY_PRIVATE_KEY}
     volumes:
       - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
     # Нужен доступ к 127.0.0.1:10085 на хосте → host network (Linux)
