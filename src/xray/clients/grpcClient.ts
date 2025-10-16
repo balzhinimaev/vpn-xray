@@ -122,9 +122,15 @@ export function createGrpcClient(
     async getTraffic(email: string, reset: boolean) {
       const getOne = (name: string): Promise<number> =>
         new Promise((resolve, reject) => {
+          console.log(`[gRPC] Querying stat: ${name}`);
           statsClient.GetStats({ name, reset_: reset }, (err: any, resp: any) => {
-            if (err) return reject(err);
-            resolve(Number(resp?.stat?.value || 0));
+            if (err) {
+              console.error(`[gRPC] GetStats error for ${name}:`, err.message || err);
+              return reject(err);
+            }
+            const value = Number(resp?.stat?.value || 0);
+            console.log(`[gRPC] Stat ${name} = ${value}`);
+            resolve(value);
           });
         });
 
