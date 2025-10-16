@@ -49,17 +49,34 @@ export async function createSdkClient(
         }
       },
       async getTraffic(email: string, reset: boolean) {
+        console.log(`[SDK] Getting traffic for email: ${email}, reset: ${reset}`);
+        
         if (!sdkInstance.stats?.getUserStats) {
+          console.error("[SDK] stats.getUserStats is not available");
           throw new Error("SDK stats.getUserStats is not available");
         }
+        
         const result = await sdkInstance.stats.getUserStats(email, reset);
+        console.log(`[SDK] getUserStats result:`, {
+          isOk: result?.isOk,
+          message: result?.message,
+          data: result?.data,
+        });
+        
         if (!result?.isOk) {
+          console.error(`[SDK] getUserStats failed:`, result?.message);
           throw new Error(result?.message || "SDK getUserStats failed");
         }
+        
         const data = result.data || {};
+        const uplink = Number(data.uplink || 0);
+        const downlink = Number(data.downlink || 0);
+        
+        console.log(`[SDK] Traffic stats - uplink: ${uplink}, downlink: ${downlink}`);
+        
         return {
-          uplink: Number(data.uplink || 0),
-          downlink: Number(data.downlink || 0),
+          uplink,
+          downlink,
         };
       },
     } satisfies XrayClient;
