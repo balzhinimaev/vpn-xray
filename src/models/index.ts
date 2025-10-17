@@ -30,6 +30,12 @@ const userSchema = new Schema(
     trialTrafficLimitBytes: { type: Number, default: 104857600 }, // 100 MB по умолчанию
     trialTrafficUsedBytes: { type: Number, default: 0 }, // Использовано байт
     trialTrafficLastSyncAt: { type: Date }, // Последняя синхронизация трафика
+    // Referral system
+    referralCode: { type: String, unique: true, sparse: true }, // Уникальный реферальный код пользователя
+    referredBy: { type: String }, // telegramId реферера
+    referralCount: { type: Number, default: 0 }, // Количество приглашенных пользователей
+    referralBonusTrafficBytes: { type: Number, default: 0 }, // Бонусный трафик от рефералов
+    referralBonusDays: { type: Number, default: 0 }, // Бонусные дни подписки от рефералов
   },
   { timestamps: true }
 );
@@ -194,6 +200,34 @@ export const NotificationLog: Model<NotificationLogSchemaType> =
     notificationLogSchema
   );
 
+const referralSchema = new Schema(
+  {
+    referrerId: { type: Schema.Types.ObjectId, ref: "User", required: true }, // Кто пригласил
+    referrerTelegramId: { type: String, required: true },
+    referredId: { type: Schema.Types.ObjectId, ref: "User", required: true }, // Кого пригласили
+    referredTelegramId: { type: String, required: true },
+    referralCode: { type: String, required: true }, // Какой реферальный код использовался
+    bonusGranted: { type: Boolean, default: false }, // Был ли начислен бонус рефереру
+    bonusType: { type: String, enum: ["traffic", "days", "both"], default: "traffic" },
+    bonusTrafficMB: { type: Number, default: 0 }, // Сколько MB трафика начислено
+    bonusDays: { type: Number, default: 0 }, // Сколько дней подписки начислено
+    bonusGrantedAt: { type: Date }, // Когда был начислен бонус
+    isActive: { type: Boolean, default: true }, // Активен ли реферал (если реферал заблокирован, можно отозвать бонус)
+  },
+  { timestamps: true }
+);
+
+referralSchema.index({ referrerId: 1, createdAt: -1 });
+referralSchema.index({ referredId: 1 });
+referralSchema.index({ referrerTelegramId: 1 });
+referralSchema.index({ referredTelegramId: 1 }, { unique: true });
+
+export type ReferralSchemaType = InferSchemaType<typeof referralSchema>;
+export type ReferralDocument = HydratedDocument<ReferralSchemaType>;
+export const Referral: Model<ReferralSchemaType> =
+  mongoose.models.Referral ??
+  mongoose.model<ReferralSchemaType>("Referral", referralSchema);
+
 export interface TelegramUserPayload {
   id: number | string;
   username?: string;
@@ -292,4 +326,119 @@ export async function saveTrafficSnapshot(
     },
     { upsert: true, new: false }
   ).exec();
+}
+
+/**
+ * Генерирует уникальный реферальный код для пользователя
+ * Формат: ref_<telegramId> (простой и предсказуемый)
+ */
+export function generateReferralCode(telegramId: string): string {
+  return `ref_${telegramId}`;
+}
+
+/**
+ * Извлекает telegramId из реферального кода
+ */
+export function extractTelegramIdFromReferralCode(referralCode: string): string | null {
+  const match = referralCode.match(/^ref_(\d+)$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Создает реферальную связь между пользователями и начисляет бонусы
+ */
+export async function createReferral(
+  referredTelegramId: string,
+  referralCode: string,
+  config: {
+    bonusTrafficMB: number;
+    bonusDays: number;
+    bonusType: "traffic" | "days" | "both";
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Извлекаем telegramId реферера из кода
+    const referrerTelegramId = extractTelegramIdFromReferralCode(referralCode);
+    if (!referrerTelegramId) {
+      return { success: false, error: "Invalid referral code format" };
+    }
+
+    // Проверяем, что пользователь не приглашает сам себя
+    if (referrerTelegramId === referredTelegramId) {
+      return { success: false, error: "Cannot use your own referral code" };
+    }
+
+    // Проверяем, что реферер существует
+    const referrer = await User.findOne({ telegramId: referrerTelegramId });
+    if (!referrer) {
+      return { success: false, error: "Referrer not found" };
+    }
+
+    // Проверяем, что приглашенный пользователь существует
+    const referred = await User.findOne({ telegramId: referredTelegramId });
+    if (!referred) {
+      return { success: false, error: "Referred user not found" };
+    }
+
+    // Проверяем, что приглашенный пользователь еще не использовал реферальную ссылку
+    if (referred.referredBy) {
+      return { success: false, error: "User already used a referral code" };
+    }
+
+    // Проверяем, не существует ли уже такая реферальная связь
+    const existingReferral = await Referral.findOne({
+      referredTelegramId: referredTelegramId,
+    });
+    if (existingReferral) {
+      return { success: false, error: "Referral already exists" };
+    }
+
+    // Начисляем бонусы рефереру
+    const bonusTrafficBytes = config.bonusTrafficMB * 1024 * 1024;
+    
+    if (config.bonusType === "traffic" || config.bonusType === "both") {
+      referrer.referralBonusTrafficBytes = (referrer.referralBonusTrafficBytes || 0) + bonusTrafficBytes;
+      referrer.trialTrafficLimitBytes = (referrer.trialTrafficLimitBytes || 0) + bonusTrafficBytes;
+    }
+    
+    if (config.bonusType === "days" || config.bonusType === "both") {
+      referrer.referralBonusDays = (referrer.referralBonusDays || 0) + config.bonusDays;
+      // Продлеваем подписку
+      if (referrer.subscriptionStatus === "trial" && referrer.trialEndsAt) {
+        referrer.trialEndsAt = new Date(referrer.trialEndsAt.getTime() + config.bonusDays * 24 * 60 * 60 * 1000);
+      } else if (referrer.subscriptionStatus === "active" && referrer.subscriptionEndsAt) {
+        referrer.subscriptionEndsAt = new Date(referrer.subscriptionEndsAt.getTime() + config.bonusDays * 24 * 60 * 60 * 1000);
+      }
+    }
+    
+    referrer.referralCount = (referrer.referralCount || 0) + 1;
+    await referrer.save();
+
+    // Обновляем приглашенного пользователя
+    referred.referredBy = referrerTelegramId;
+    await referred.save();
+
+    // Создаем запись о реферале
+    await Referral.create({
+      referrerId: referrer._id,
+      referrerTelegramId: referrer.telegramId,
+      referredId: referred._id,
+      referredTelegramId: referred.telegramId,
+      referralCode,
+      bonusGranted: true,
+      bonusType: config.bonusType,
+      bonusTrafficMB: config.bonusTrafficMB,
+      bonusDays: config.bonusDays,
+      bonusGrantedAt: new Date(),
+      isActive: true,
+    });
+
+    console.log(`[createReferral] Successfully created referral: ${referrerTelegramId} -> ${referredTelegramId}`);
+    console.log(`[createReferral] Bonus granted: ${config.bonusType}, traffic: ${config.bonusTrafficMB}MB, days: ${config.bonusDays}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("[createReferral] Error:", error);
+    return { success: false, error: error.message || "Unknown error" };
+  }
 }

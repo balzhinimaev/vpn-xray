@@ -13,7 +13,43 @@
 
 ## Маршруты
 
-### 1. Получить полные данные пользователя
+### 1. Проверить существование пользователя
+
+**Endpoint:** `GET /bot/check-user/:telegramId`
+
+Проверяет, зарегистрирован ли пользователь в системе.
+
+**Параметры:**
+- `telegramId` (path) - ID пользователя в Telegram
+
+**Пример запроса:**
+
+```bash
+curl -X GET "http://localhost:8080/bot/check-user/123456789" \
+  -H "x-bot-secret: YOUR_BOT_SECRET"
+```
+
+**Пример ответа (пользователь существует):**
+
+```json
+{
+  "exists": true,
+  "telegramId": "123456789",
+  "userId": "64f9a1b2c3d4e5f6g7h8i9j0"
+}
+```
+
+**Пример ответа (пользователь не существует):**
+
+```json
+{
+  "exists": false,
+  "telegramId": "123456789",
+  "userId": null
+}
+```
+
+### 2. Получить полные данные пользователя
 
 **Endpoint:** `GET /bot/user/:telegramId`
 
@@ -94,7 +130,7 @@ curl -X GET "http://localhost:8080/bot/user/123456789?secret=YOUR_BOT_SECRET"
 }
 ```
 
-### 2. Получить только статус подписки
+### 3. Получить только статус подписки
 
 **Endpoint:** `GET /bot/user/:telegramId/subscription`
 
@@ -148,7 +184,7 @@ curl -X GET "http://localhost:8080/bot/user/123456789/subscription" \
 }
 ```
 
-### 3. Получить только данные VPN аккаунта
+### 4. Получить только данные VPN аккаунта
 
 **Endpoint:** `GET /bot/user/:telegramId/vpn`
 
@@ -186,6 +222,83 @@ curl -X GET "http://localhost:8080/bot/user/123456789/vpn" \
 {
   "error": "No active VPN account found",
   "hasAccount": false
+}
+```
+
+### 5. Получить статистику рефералов пользователя
+
+**Endpoint:** `GET /bot/user/:telegramId/referrals`
+
+Возвращает подробную статистику рефералов пользователя.
+
+**Пример запроса:**
+
+```bash
+curl -X GET "http://localhost:8080/bot/user/123456789/referrals" \
+  -H "x-bot-secret: YOUR_BOT_SECRET"
+```
+
+**Пример ответа:**
+
+```json
+{
+  "user": {
+    "telegramId": "123456789",
+    "referralCode": "ref_123456789",
+    "referralCount": 5,
+    "referralBonusTrafficMB": 250,
+    "referralBonusDays": 0
+  },
+  "stats": {
+    "totalReferrals": 5,
+    "activeReferrals": 4,
+    "totalBonusTrafficMB": 250,
+    "totalBonusDays": 0
+  },
+  "referrals": [
+    {
+      "id": "64f9a1b2c3d4e5f6g7h8i9j2",
+      "referredUser": {
+        "telegramId": "987654321",
+        "username": "newuser",
+        "firstName": "New",
+        "lastName": "User",
+        "isPremium": false,
+        "subscriptionStatus": "trial"
+      },
+      "bonusGranted": true,
+      "bonusType": "traffic",
+      "bonusTrafficMB": 50,
+      "bonusDays": 0,
+      "bonusGrantedAt": "2025-10-15T10:00:00.000Z",
+      "isActive": true,
+      "createdAt": "2025-10-15T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### 6. Получить реферальный код пользователя
+
+**Endpoint:** `GET /bot/user/:telegramId/referral-code`
+
+Возвращает реферальный код и ссылку пользователя для приглашения друзей.
+
+**Пример запроса:**
+
+```bash
+curl -X GET "http://localhost:8080/bot/user/123456789/referral-code" \
+  -H "x-bot-secret: YOUR_BOT_SECRET"
+```
+
+**Пример ответа:**
+
+```json
+{
+  "telegramId": "123456789",
+  "referralCode": "ref_123456789",
+  "referralLink": "https://t.me/vpnbot?start=ref_123456789",
+  "referralCount": 5
 }
 ```
 
@@ -253,6 +366,20 @@ import os
 BOT_SECRET = os.getenv("BOT_REGISTRATION_SECRET")
 API_URL = "http://localhost:8080"
 
+async def check_user_exists(telegram_id: int):
+    """Проверить, зарегистрирован ли пользователь"""
+    async with aiohttp.ClientSession() as session:
+        headers = {"x-bot-secret": BOT_SECRET}
+        url = f"{API_URL}/bot/check-user/{telegram_id}"
+        
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                data = await response.json()
+                return data['exists']
+            else:
+                error = await response.json()
+                raise Exception(f"API Error: {error.get('error')}")
+
 async def get_user_data(telegram_id: int):
     async with aiohttp.ClientSession() as session:
         headers = {"x-bot-secret": BOT_SECRET}
@@ -276,7 +403,24 @@ async def get_subscription_status(telegram_id: int):
                 return data
             return None
 
-# Использование в хендлере
+# Использование в хендлерах
+@router.message(Command("start"))
+async def cmd_start(message: Message):
+    """Проверяем пользователя при старте и регистрируем если нужно"""
+    telegram_id = message.from_user.id
+    
+    # Проверяем существование пользователя
+    user_exists = await check_user_exists(telegram_id)
+    
+    if not user_exists:
+        # Регистрируем нового пользователя
+        await message.answer("👋 Добро пожаловать! Регистрируем вас в системе...")
+        # Здесь вызываем /auth/bot-register
+        # ...
+    else:
+        # Пользователь уже есть
+        await message.answer("👋 С возвращением!")
+
 @router.message(Command("status"))
 async def cmd_status(message: Message):
     data = await get_user_data(message.from_user.id)
@@ -305,6 +449,16 @@ import axios from "axios";
 const BOT_SECRET = process.env.BOT_REGISTRATION_SECRET;
 const API_URL = "http://localhost:8080";
 
+async function checkUserExists(telegramId: number): Promise<boolean> {
+  const response = await axios.get(
+    `${API_URL}/bot/check-user/${telegramId}`,
+    {
+      headers: { "x-bot-secret": BOT_SECRET },
+    }
+  );
+  return response.data.exists;
+}
+
 async function getUserData(telegramId: number) {
   const response = await axios.get(
     `${API_URL}/bot/user/${telegramId}`,
@@ -314,6 +468,19 @@ async function getUserData(telegramId: number) {
   );
   return response.data;
 }
+
+bot.command("start", async (ctx) => {
+  // Проверяем пользователя при старте
+  const userExists = await checkUserExists(ctx.from.id);
+  
+  if (!userExists) {
+    await ctx.reply("👋 Добро пожаловать! Регистрируем вас в системе...");
+    // Здесь вызываем регистрацию через POST /auth/bot-register
+    // ...
+  } else {
+    await ctx.reply("👋 С возвращением!");
+  }
+});
 
 bot.command("status", async (ctx) => {
   const data = await getUserData(ctx.from.id);
@@ -334,6 +501,94 @@ bot.command("status", async (ctx) => {
   }
 });
 ```
+
+## Реферальная система
+
+### Описание
+
+Реферальная система позволяет пользователям приглашать друзей и получать бонусы за каждого приглашенного пользователя.
+
+### Механизм работы
+
+1. **Генерация реферального кода:**
+   - При регистрации каждому пользователю автоматически генерируется уникальный реферальный код в формате `ref_<telegramId>`
+   - Пример: `ref_123456789`
+
+2. **Реферальная ссылка:**
+   - Формат: `https://t.me/<BOT_USERNAME>?start=ref_<telegramId>`
+   - Пример: `https://t.me/vpnbot?start=ref_123456789`
+
+3. **Обработка реферального кода:**
+   - При регистрации нового пользователя через `/auth/bot-register` передается параметр `referralCode`
+   - Если код валиден, создается связь между реферером и приглашенным
+   - Рефереру автоматически начисляются бонусы
+
+4. **Типы бонусов:**
+   - `traffic` - дополнительный трафик (по умолчанию: 50 MB за каждого реферала)
+   - `days` - дополнительные дни подписки
+   - `both` - и трафик, и дни
+
+### Пример регистрации с реферальным кодом
+
+**POST** `/auth/bot-register`
+
+```json
+{
+  "telegramId": "987654321",
+  "username": "newuser",
+  "firstName": "New",
+  "lastName": "User",
+  "languageCode": "ru",
+  "isPremium": false,
+  "referralCode": "ref_123456789"
+}
+```
+
+**Ответ:**
+
+```json
+{
+  "accessToken": "...",
+  "refreshToken": "...",
+  "user": {
+    "id": "...",
+    "telegramId": "987654321",
+    "referralCode": "ref_987654321",
+    "referredBy": "123456789",
+    "referralCount": 0
+  },
+  "vlessAccount": { ... },
+  "referral": {
+    "success": true,
+    "error": null
+  }
+}
+```
+
+### Настройка бонусов
+
+Бонусы настраиваются через переменные окружения:
+
+```env
+# Бонус трафика за каждого реферала (в MB)
+REFERRAL_BONUS_TRAFFIC_MB=50
+
+# Бонусные дни подписки за каждого реферала
+REFERRAL_BONUS_DAYS=0
+
+# Тип бонуса: traffic | days | both
+REFERRAL_BONUS_TYPE=traffic
+
+# Username бота для генерации реферальных ссылок
+BOT_USERNAME=vpnbot
+```
+
+### Ограничения
+
+- Пользователь не может использовать свой собственный реферальный код
+- Реферальный код можно использовать только один раз (при первой регистрации)
+- Если пользователь уже зарегистрирован, повторное использование реферального кода игнорируется
+- Бонусы начисляются только за активных пользователей
 
 ## Безопасность
 

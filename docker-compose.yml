@@ -25,6 +25,10 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       JWT_SECRET: ${JWT_SECRET}
       X_REALITY_PRIVATE_KEY: ${X_REALITY_PRIVATE_KEY}
+      REFERRAL_BONUS_TRAFFIC_MB: ${REFERRAL_BONUS_TRAFFIC_MB}
+      REFERRAL_BONUS_DAYS: ${REFERRAL_BONUS_DAYS}
+      REFERRAL_BONUS_TYPE: ${REFERRAL_BONUS_TYPE}
+      BOT_USERNAME: ${BOT_USERNAME}
     volumes:
       - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
     # Нужен доступ к 127.0.0.1:10085 на хосте → host network (Linux)

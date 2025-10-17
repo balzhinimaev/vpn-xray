@@ -252,6 +252,39 @@
             "description": "Returns the Telegram profile stored in MongoDB along with the count of active VLESS accounts."
           },
           "response": []
+        },
+        {
+          "name": "POST /auth/bot-register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-bot-secret",
+                "value": "{{botSecret}}",
+                "description": "Bot registration secret"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"telegramId\": \"{{telegramId}}\",\n  \"username\": \"testuser\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"languageCode\": \"en\",\n  \"isPremium\": false,\n  \"referralCode\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/bot-register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "bot-register"
+              ]
+            },
+            "description": "Register user directly from Telegram bot. Automatically creates VLESS account for new users. Optionally accepts referral code."
+          },
+          "response": []
         }
       ]
     },
@@ -491,6 +524,32 @@
       "description": "Routes for Telegram bot to access user data. Use bot registration secret instead of JWT.",
       "item": [
         {
+          "name": "GET /bot/check-user/:telegramId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-bot-secret",
+                "value": "{{botSecret}}",
+                "description": "Bot registration secret"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bot/check-user/{{telegramId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bot",
+                "check-user",
+                "{{telegramId}}"
+              ]
+            },
+            "description": "Check if user exists in the system by Telegram ID. Returns exists flag and user ID if found."
+          },
+          "response": []
+        },
+        {
           "name": "GET /bot/user/:telegramId",
           "request": {
             "method": "GET",
@@ -567,6 +626,60 @@
               ]
             },
             "description": "Get only VPN account data for the user. Returns 404 if user has no active VPN account."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /bot/user/:telegramId/referrals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-bot-secret",
+                "value": "{{botSecret}}",
+                "description": "Bot registration secret"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bot/user/{{telegramId}}/referrals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bot",
+                "user",
+                "{{telegramId}}",
+                "referrals"
+              ]
+            },
+            "description": "Get detailed referral statistics for the user including list of all referrals and bonuses."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /bot/user/:telegramId/referral-code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-bot-secret",
+                "value": "{{botSecret}}",
+                "description": "Bot registration secret"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bot/user/{{telegramId}}/referral-code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bot",
+                "user",
+                "{{telegramId}}",
+                "referral-code"
+              ]
+            },
+            "description": "Get user's referral code and link for inviting friends. Auto-generates code if user doesn't have one."
           },
           "response": []
         }

@@ -79,6 +79,17 @@ const SUBSCRIPTION_MONTHLY_DAYS = parseInt(
 const NOTIFICATION_EXPIRY_DAYS_BEFORE = [3, 1]; // За сколько дней до истечения отправлять напоминания (для подписок)
 const NOTIFICATION_EXPIRY_HOURS_BEFORE = [2, 1]; // За сколько часов до истечения отправлять напоминания (для триала)
 
+// Referral System
+const REFERRAL_BONUS_TRAFFIC_MB = parseInt(
+  process.env.REFERRAL_BONUS_TRAFFIC_MB || "50",
+  10
+); // Бонус трафика за каждого приглашенного (MB)
+const REFERRAL_BONUS_DAYS = parseInt(
+  process.env.REFERRAL_BONUS_DAYS || "1",
+  10
+); // Бонусные дни подписки за каждого приглашенного
+const REFERRAL_BONUS_TYPE = (process.env.REFERRAL_BONUS_TYPE || "traffic") as "traffic" | "days" | "both"; // Тип бонуса
+
 export const config = {
   HTTP_ADDR,
   HTTP_HOST,
@@ -109,6 +120,9 @@ export const config = {
   SUBSCRIPTION_MONTHLY_DAYS,
   NOTIFICATION_EXPIRY_DAYS_BEFORE,
   NOTIFICATION_EXPIRY_HOURS_BEFORE,
+  REFERRAL_BONUS_TRAFFIC_MB,
+  REFERRAL_BONUS_DAYS,
+  REFERRAL_BONUS_TYPE,
 } as const;
 
 export type AppConfig = typeof config;

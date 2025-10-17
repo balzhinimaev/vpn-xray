@@ -20,6 +20,34 @@ export function createBotRouter(options: BotRouteOptions) {
   };
 
   /**
+   * GET /bot/check-user/:telegramId
+   * Проверить существование пользователя по telegramId
+   * Требует передачи секретного ключа бота в заголовке x-bot-secret или параметре secret
+   */
+  router.get("/check-user/:telegramId", validateBotSecret, async (req: Request, res: Response) => {
+    try {
+      const { telegramId } = req.params;
+
+      if (!telegramId) {
+        return res.status(400).json({ error: "telegramId is required" });
+      }
+
+      const { User } = await import("../../models/index.js");
+
+      const user = await User.findOne({ telegramId: telegramId.toString() });
+
+      res.json({
+        exists: !!user,
+        telegramId: telegramId.toString(),
+        userId: user?._id || null,
+      });
+    } catch (error: any) {
+      console.error("[GET /bot/check-user/:telegramId] error:", error);
+      res.status(500).json({ error: error.message || "Internal error" });
+    }
+  });
+
+  /**
    * GET /bot/user/:telegramId
    * Получить данные пользователя по telegramId (для телеграм бота)
    * Требует передачи секретного ключа бота в заголовке x-bot-secret или параметре secret
@@ -256,6 +284,115 @@ export function createBotRouter(options: BotRouteOptions) {
       });
     } catch (error: any) {
       console.error("[GET /bot/user/:telegramId/vpn] error:", error);
+      res.status(500).json({ error: error.message || "Internal error" });
+    }
+  });
+
+  /**
+   * GET /bot/user/:telegramId/referrals
+   * Получить статистику рефералов пользователя
+   */
+  router.get("/user/:telegramId/referrals", validateBotSecret, async (req: Request, res: Response) => {
+    try {
+      const { telegramId } = req.params;
+
+      if (!telegramId) {
+        return res.status(400).json({ error: "telegramId is required" });
+      }
+
+      const { User, Referral } = await import("../../models/index.js");
+
+      const user = await User.findOne({ telegramId: telegramId.toString() });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Получаем список рефералов
+      const referrals = await Referral.find({
+        referrerTelegramId: telegramId.toString(),
+      })
+        .sort({ createdAt: -1 })
+        .populate("referredId", "telegramId username firstName lastName isPremium subscriptionStatus createdAt")
+        .exec();
+
+      // Подсчитываем статистику
+      const totalReferrals = referrals.length;
+      const activeReferrals = referrals.filter(r => r.isActive).length;
+      const totalBonusTrafficMB = referrals.reduce((sum, r) => sum + (r.bonusTrafficMB || 0), 0);
+      const totalBonusDays = referrals.reduce((sum, r) => sum + (r.bonusDays || 0), 0);
+
+      res.json({
+        user: {
+          telegramId: user.telegramId,
+          referralCode: user.referralCode,
+          referralCount: user.referralCount,
+          referralBonusTrafficMB: Math.round((user.referralBonusTrafficBytes || 0) / 1024 / 1024),
+          referralBonusDays: user.referralBonusDays,
+        },
+        stats: {
+          totalReferrals,
+          activeReferrals,
+          totalBonusTrafficMB,
+          totalBonusDays,
+        },
+        referrals: referrals.map(r => ({
+          id: r._id,
+          referredUser: {
+            telegramId: (r.referredId as any)?.telegramId,
+            username: (r.referredId as any)?.username,
+            firstName: (r.referredId as any)?.firstName,
+            lastName: (r.referredId as any)?.lastName,
+            isPremium: (r.referredId as any)?.isPremium,
+            subscriptionStatus: (r.referredId as any)?.subscriptionStatus,
+          },
+          bonusGranted: r.bonusGranted,
+          bonusType: r.bonusType,
+          bonusTrafficMB: r.bonusTrafficMB,
+          bonusDays: r.bonusDays,
+          bonusGrantedAt: r.bonusGrantedAt,
+          isActive: r.isActive,
+          createdAt: r.createdAt,
+        })),
+      });
+    } catch (error: any) {
+      console.error("[GET /bot/user/:telegramId/referrals] error:", error);
+      res.status(500).json({ error: error.message || "Internal error" });
+    }
+  });
+
+  /**
+   * GET /bot/user/:telegramId/referral-code
+   * Получить только реферальный код пользователя
+   */
+  router.get("/user/:telegramId/referral-code", validateBotSecret, async (req: Request, res: Response) => {
+    try {
+      const { telegramId } = req.params;
+
+      if (!telegramId) {
+        return res.status(400).json({ error: "telegramId is required" });
+      }
+
+      const { User, generateReferralCode } = await import("../../models/index.js");
+
+      let user = await User.findOne({ telegramId: telegramId.toString() });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Генерируем реферальный код, если его еще нет
+      if (!user.referralCode) {
+        user.referralCode = generateReferralCode(user.telegramId);
+        await user.save();
+      }
+
+      res.json({
+        telegramId: user.telegramId,
+        referralCode: user.referralCode,
+        referralLink: `https://t.me/${process.env.BOT_USERNAME || 'vpnbot'}?start=${user.referralCode}`,
+        referralCount: user.referralCount || 0,
+      });
+    } catch (error: any) {
+      console.error("[GET /bot/user/:telegramId/referral-code] error:", error);
       res.status(500).json({ error: error.message || "Internal error" });
     }
   });

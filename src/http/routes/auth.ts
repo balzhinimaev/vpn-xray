@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { JWTService } from "../../auth/jwtService.js";
 import { createTelegramInitDataValidator } from "../../auth/telegramAuth.js";
-import { findOrCreateUser } from "../../models/index.js";
+import { findOrCreateUser, generateReferralCode, createReferral } from "../../models/index.js";
 import { Session } from "../../models/index.js";
 import { XrayService } from "../../services/xrayService.js";
 import { config } from "../../config/index.js";
@@ -97,7 +97,7 @@ export function createAuthRouter(options: AuthRouteOptions) {
     validateBotSecret,
     async (req: Request, res: Response) => {
       try {
-        const { telegramId, username, firstName, lastName, languageCode, isPremium } = req.body;
+        const { telegramId, username, firstName, lastName, languageCode, isPremium, referralCode } = req.body;
 
         if (!telegramId) {
           return res.status(400).json({ error: "telegramId is required" });
@@ -114,6 +114,9 @@ export function createAuthRouter(options: AuthRouteOptions) {
         };
 
         console.log("[POST /auth/bot-register] Processing registration for telegramId:", telegramId);
+        if (referralCode) {
+          console.log("[POST /auth/bot-register] Referral code provided:", referralCode);
+        }
         
         // Проверим, существует ли пользователь (чтобы определить, нужно ли создавать VLESS)
         const { User, VlessAccount, Subscription, NotificationLog } = await import("../../models/index.js");
@@ -124,6 +127,13 @@ export function createAuthRouter(options: AuthRouteOptions) {
         
         // Найти или создать пользователя
         const user = await findOrCreateUser(telegramUserPayload);
+        
+        // Генерируем реферальный код для нового пользователя
+        if (isNewUser && !user.referralCode) {
+          user.referralCode = generateReferralCode(user.telegramId);
+          await user.save();
+          console.log(`[POST /auth/bot-register] Generated referral code: ${user.referralCode}`);
+        }
         
         // Устанавливаем тестовый период для нового пользователя
         if (isNewUser && !user.trialEndsAt) {
@@ -150,6 +160,23 @@ export function createAuthRouter(options: AuthRouteOptions) {
           
           console.log(`[POST /auth/bot-register] Trial period set until ${trialEndsAt.toISOString()}`);
           console.log(`[POST /auth/bot-register] Trial traffic limit: ${config.TRIAL_TRAFFIC_LIMIT_MB}MB`);
+        }
+        
+        // Обработка реферального кода (только для новых пользователей)
+        let referralResult = null;
+        if (isNewUser && referralCode) {
+          console.log(`[POST /auth/bot-register] Processing referral code: ${referralCode}`);
+          referralResult = await createReferral(user.telegramId, referralCode, {
+            bonusTrafficMB: config.REFERRAL_BONUS_TRAFFIC_MB,
+            bonusDays: config.REFERRAL_BONUS_DAYS,
+            bonusType: config.REFERRAL_BONUS_TYPE,
+          });
+          
+          if (referralResult.success) {
+            console.log(`[POST /auth/bot-register] Referral successfully processed`);
+          } else {
+            console.warn(`[POST /auth/bot-register] Referral processing failed: ${referralResult.error}`);
+          }
         }
         
         console.log("[POST /auth/bot-register] User found/created:", {
@@ -249,8 +276,15 @@ export function createAuthRouter(options: AuthRouteOptions) {
             subscriptionStatus: user.subscriptionStatus,
             trialEndsAt: user.trialEndsAt,
             subscriptionEndsAt: user.subscriptionEndsAt,
+            referralCode: user.referralCode, // Реферальный код пользователя
+            referredBy: user.referredBy, // telegramId реферера
+            referralCount: user.referralCount, // Количество рефералов
           },
           vlessAccount, // null если аккаунт уже был или произошла ошибка
+          referral: referralResult ? {
+            success: referralResult.success,
+            error: referralResult.error,
+          } : null,
         });
       } catch (error: any) {
         console.error("[POST /auth/bot-register] error:", error);
