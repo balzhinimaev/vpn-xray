@@ -68,9 +68,11 @@ export async function createSdkClient(
           throw new Error(result?.message || "SDK getUserStats failed");
         }
         
+        // SDK returns data in data.user object, not directly in data
         const data = result.data || {};
-        const uplink = Number(data.uplink || 0);
-        const downlink = Number(data.downlink || 0);
+        const user = data.user || {};
+        const uplink = Number(user.uplink || 0);
+        const downlink = Number(user.downlink || 0);
         
         console.log(`[SDK] Traffic stats - uplink: ${uplink}, downlink: ${downlink}`);
         

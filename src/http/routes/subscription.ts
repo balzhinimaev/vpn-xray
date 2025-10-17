@@ -72,6 +72,26 @@ export function createSubscriptionRouter(
         );
       }
 
+      // Добавляем информацию о трафике для триальных пользователей
+      let trialTraffic = null;
+      if (user.subscriptionStatus === "trial") {
+        const trialTrafficLimit = user.trialTrafficLimitBytes || config.TRIAL_TRAFFIC_LIMIT_BYTES;
+        const trialTrafficUsed = user.trialTrafficUsedBytes || 0;
+        const trialTrafficRemaining = Math.max(0, trialTrafficLimit - trialTrafficUsed);
+        const trialTrafficUsedPercent = Math.round((trialTrafficUsed / trialTrafficLimit) * 100);
+
+        trialTraffic = {
+          limitBytes: trialTrafficLimit,
+          limitMB: Math.round(trialTrafficLimit / 1024 / 1024),
+          usedBytes: trialTrafficUsed,
+          usedMB: (trialTrafficUsed / 1024 / 1024).toFixed(2),
+          remainingBytes: trialTrafficRemaining,
+          remainingMB: (trialTrafficRemaining / 1024 / 1024).toFixed(2),
+          usedPercent: trialTrafficUsedPercent,
+          lastSyncAt: user.trialTrafficLastSyncAt,
+        };
+      }
+
       res.json({
         status: user.subscriptionStatus,
         expiresAt,
@@ -80,6 +100,7 @@ export function createSubscriptionRouter(
         activeAccounts,
         trialEndsAt: user.trialEndsAt,
         subscriptionEndsAt: user.subscriptionEndsAt,
+        trialTraffic,
         activeSubscriptions: activeSubscriptions.map((sub) => ({
           id: sub._id,
           type: sub.type,

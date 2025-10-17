@@ -132,6 +132,8 @@ export function createAuthRouter(options: AuthRouteOptions) {
           
           user.subscriptionStatus = "trial";
           user.trialEndsAt = trialEndsAt;
+          user.trialTrafficLimitBytes = config.TRIAL_TRAFFIC_LIMIT_BYTES;
+          user.trialTrafficUsedBytes = 0;
           await user.save();
           
           // Создаем запись о тестовой подписке
@@ -147,6 +149,7 @@ export function createAuthRouter(options: AuthRouteOptions) {
           });
           
           console.log(`[POST /auth/bot-register] Trial period set until ${trialEndsAt.toISOString()}`);
+          console.log(`[POST /auth/bot-register] Trial traffic limit: ${config.TRIAL_TRAFFIC_LIMIT_MB}MB`);
         }
         
         console.log("[POST /auth/bot-register] User found/created:", {

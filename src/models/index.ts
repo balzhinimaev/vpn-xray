@@ -26,6 +26,10 @@ const userSchema = new Schema(
     trialEndsAt: { type: Date }, // Дата окончания тестового периода
     subscriptionEndsAt: { type: Date }, // Дата окончания оплаченной подписки
     lastNotificationSentAt: { type: Date }, // Последнее отправленное напоминание
+    // Trial traffic limits
+    trialTrafficLimitBytes: { type: Number, default: 104857600 }, // 100 MB по умолчанию
+    trialTrafficUsedBytes: { type: Number, default: 0 }, // Использовано байт
+    trialTrafficLastSyncAt: { type: Date }, // Последняя синхронизация трафика
   },
   { timestamps: true }
 );
@@ -159,6 +163,8 @@ const notificationLogSchema = new Schema(
         "trial_expires_3d",
         "trial_expires_1d",
         "trial_expired",
+        "trial_traffic_warning",
+        "trial_traffic_limit_reached",
         "subscription_expires_3d",
         "subscription_expires_1d",
         "subscription_expired",
