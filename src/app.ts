@@ -8,6 +8,7 @@ import { createUsersRouter } from "./http/routes/users.js";
 import { createAuthRouter } from "./http/routes/auth.js";
 import { createAccountsRouter } from "./http/routes/accounts.js";
 import { createSubscriptionRouter } from "./http/routes/subscription.js";
+import { createBotRouter } from "./http/routes/bot.js";
 import { createJWTMiddleware, JWTService } from "./auth/jwtService.js";
 import { XrayService } from "./services/xrayService.js";
 
@@ -92,6 +93,16 @@ export function createApp(options: AppOptions) {
         botToken,
         botRegistrationSecret: botRegistrationSecret || "",
         requireAuth: requireJWTAuth,
+      })
+    );
+  }
+
+  // Bot API routes (without JWT, uses bot secret)
+  if (botRegistrationSecret) {
+    app.use(
+      "/bot",
+      createBotRouter({
+        botRegistrationSecret,
       })
     );
   }

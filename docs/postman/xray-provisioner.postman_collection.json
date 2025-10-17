@@ -485,6 +485,92 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Bot API (Bot Secret)",
+      "description": "Routes for Telegram bot to access user data. Use bot registration secret instead of JWT.",
+      "item": [
+        {
+          "name": "GET /bot/user/:telegramId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-bot-secret",
+                "value": "{{botSecret}}",
+                "description": "Bot registration secret"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bot/user/{{telegramId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bot",
+                "user",
+                "{{telegramId}}"
+              ]
+            },
+            "description": "Get full user data including profile, subscription status, and active VPN account. Requires bot secret."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /bot/user/:telegramId/subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-bot-secret",
+                "value": "{{botSecret}}",
+                "description": "Bot registration secret"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bot/user/{{telegramId}}/subscription",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bot",
+                "user",
+                "{{telegramId}}",
+                "subscription"
+              ]
+            },
+            "description": "Get only subscription status for the user. Returns trial traffic info for trial users."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /bot/user/:telegramId/vpn",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-bot-secret",
+                "value": "{{botSecret}}",
+                "description": "Bot registration secret"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bot/user/{{telegramId}}/vpn",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bot",
+                "user",
+                "{{telegramId}}",
+                "vpn"
+              ]
+            },
+            "description": "Get only VPN account data for the user. Returns 404 if user has no active VPN account."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -519,6 +605,14 @@
     {
       "key": "resetTraffic",
       "value": "false"
+    },
+    {
+      "key": "botSecret",
+      "value": "CHANGE_ME_BOT_SECRET"
+    },
+    {
+      "key": "telegramId",
+      "value": "123456789"
     }
   ]
 }
