@@ -148,7 +148,9 @@ export function createSubscriptionRouter(
 
       // Вычисляем период подписки
       let subscriptionDays = config.SUBSCRIPTION_MONTHLY_DAYS;
-      if (type === "quarterly") {
+      if (type === "weekly") {
+        subscriptionDays = 7;
+      } else if (type === "quarterly") {
         subscriptionDays = config.SUBSCRIPTION_MONTHLY_DAYS * 3;
       } else if (type === "yearly") {
         subscriptionDays = config.SUBSCRIPTION_MONTHLY_DAYS * 12;
@@ -197,19 +199,26 @@ export function createSubscriptionRouter(
       });
 
       for (const account of inactiveAccounts) {
-        // Реактивируем аккаунт в Xray
+        // Реактивируем аккаунт в Xray с СУЩЕСТВУЮЩИМ UUID
         try {
-          await xrayService.createAdminUser({
+          // Получаем клиент Xray напрямую для использования существующего UUID
+          const xrayClient = (xrayService as any).client;
+          const inboundInfo = xrayService.getInboundInfo();
+          
+          // Добавляем пользователя в Xray с UUID из БД
+          await xrayClient.addUser({
+            tag: inboundInfo.tag,
             email: account.email,
-            flow: account.flow ?? undefined,
-            remark: account.remark ?? undefined,
+            uuid: account.uuid, // Используем UUID из БД!
+            flow: account.flow ?? config.DEFAULT_FLOW,
+            level: 0,
           });
           
           account.isActive = true;
           account.expiresAt = endsAt;
           await account.save();
           
-          console.log(`[POST /api/subscription/extend] Reactivated account ${account.email}`);
+          console.log(`[POST /api/subscription/extend] Reactivated account ${account.email} (UUID: ${account.uuid})`);
         } catch (err) {
           console.error(
             `[POST /api/subscription/extend] Failed to reactivate account ${account.email}:`,
@@ -287,6 +296,20 @@ export function createSubscriptionRouter(
     try {
       // Здесь можно добавить динамические цены из БД или конфига
       const plans = [
+        {
+          id: "weekly",
+          name: "Недельная подписка",
+          duration: 7,
+          durationUnit: "days",
+          price: 1,
+          currency: "XTR",
+          features: [
+            "Безлимитный трафик",
+            "Высокая скорость",
+            "Поддержка 24/7",
+            "До 5 устройств",
+          ],
+        },
         {
           id: "monthly",
           name: "Месячная подписка",

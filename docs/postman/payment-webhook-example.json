@@ -1,0 +1,124 @@
+{
+  "info": {
+    "name": "Payment Webhook Example",
+    "description": "Пример запроса для тестирования webhook'а обработки платежей от Telegram Stars"
+  },
+  "item": [
+    {
+      "name": "POST /webhook/telegram-payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-telegram-bot-api-secret-token",
+            "value": "{{telegramSecretToken}}",
+            "description": "Опционально, для валидации подписи"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currency\": \"XTR\",\n  \"total_amount\": 1,\n  \"invoice_payload\": \"{\\\"type\\\":\\\"vpn_subscription\\\",\\\"days\\\":14,\\\"user_id\\\":1272270574,\\\"timestamp\\\":1760847554121}\",\n  \"telegram_payment_charge_id\": \"stxB0Kv34MV1OVpOErBGHyTte9PLz7XyjFUlb5isGpmFjZTs_aqGrTXTi7WO6Xqw9vHZdbYKy_In-_vlCTY0aTSadvS186B29V5um5Io-5uX7QRICdTQY9TykEtHDBUgX0D\",\n  \"provider_payment_charge_id\": \"1272270574_35\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/webhook/telegram-payment",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhook", "telegram-payment"]
+        },
+        "description": "Обработка успешного платежа за подписку на 14 дней"
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currency\": \"XTR\",\n  \"total_amount\": 1,\n  \"invoice_payload\": \"{\\\"type\\\":\\\"vpn_subscription\\\",\\\"days\\\":14,\\\"user_id\\\":1272270574,\\\"timestamp\\\":1760847554121}\",\n  \"telegram_payment_charge_id\": \"stxB0Kv34MV1OVpOErBGHyTte9PLz7XyjFUlb5isGpmFjZTs_aqGrTXTi7WO6Xqw9vHZdbYKy_In-_vlCTY0aTSadvS186B29V5um5Io-5uX7QRICdTQY9TykEtHDBUgX0D\",\n  \"provider_payment_charge_id\": \"1272270574_35\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook/telegram-payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhook", "telegram-payment"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"ok\": true,\n  \"message\": \"Payment processed successfully\",\n  \"subscription\": {\n    \"id\": \"64f9a1b2c3d4e5f6g7h8i9j0\",\n    \"type\": \"monthly\",\n    \"startsAt\": \"2025-01-17T10:00:00.000Z\",\n    \"endsAt\": \"2025-01-24T10:00:00.000Z\"\n  },\n  \"user\": {\n    \"telegramId\": \"1272270574\",\n    \"subscriptionStatus\": \"active\",\n    \"subscriptionEndsAt\": \"2025-01-24T10:00:00.000Z\"\n  },\n  \"vlessAccount\": {\n    \"id\": \"64f9a1b2c3d4e5f6g7h8i9j1\",\n    \"email\": \"user_1272270574@example.com\",\n    \"link\": \"vless://...\",\n    \"isActive\": true,\n    \"expiresAt\": \"2025-01-24T10:00:00.000Z\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /webhook/telegram-payment/status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/webhook/telegram-payment/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["webhook", "telegram-payment", "status"]
+        },
+        "description": "Проверка статуса webhook'а"
+      },
+      "response": [
+        {
+          "name": "Status Response",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/webhook/telegram-payment/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhook", "telegram-payment", "status"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"ok\": true,\n  \"message\": \"Payment webhook is active\",\n  \"timestamp\": \"2025-01-17T10:00:00.000Z\"\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "description": "Базовый URL сервера"
+    },
+    {
+      "key": "telegramSecretToken",
+      "value": "your-secret-token",
+      "description": "Секретный токен для валидации подписи от Telegram"
+    }
+  ]
+}

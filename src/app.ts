@@ -9,6 +9,7 @@ import { createAuthRouter } from "./http/routes/auth.js";
 import { createAccountsRouter } from "./http/routes/accounts.js";
 import { createSubscriptionRouter } from "./http/routes/subscription.js";
 import { createBotRouter } from "./http/routes/bot.js";
+import { createPaymentRouter } from "./http/routes/payment.js";
 import { createJWTMiddleware, JWTService } from "./auth/jwtService.js";
 import { XrayService } from "./services/xrayService.js";
 
@@ -117,6 +118,17 @@ export function createApp(options: AppOptions) {
     "/api/subscription",
     createSubscriptionRouter({ requireAuth: requireJWTAuth, xrayService: service })
   );
+
+  // Payment webhook routes (без авторизации, использует подпись Telegram)
+  if (botToken) {
+    app.use(
+      "/webhook",
+      createPaymentRouter({
+        xrayService: service,
+        botToken,
+      })
+    );
+  }
 
   app.use("/", createUsersRouter(service, { requireAuth: requireApiTokenAuth }));
 

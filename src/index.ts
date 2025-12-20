@@ -83,27 +83,39 @@ async function bootstrap() {
     defaultExpiryDays: config.DEFAULT_ACCOUNT_EXPIRY_DAYS,
   });
 
-  // 6. Инициализация планировщика подписок
+  // 6. Инициализация сервиса уведомлений
+  const { TelegramNotificationService } = await import("./services/telegramNotificationService.js");
+  const notificationService = new TelegramNotificationService(config.BOT_TOKEN);
+
+  // 7. Инициализация планировщика подписок
   const scheduler = new SubscriptionScheduler({
     xrayService: service,
     notificationCallback: async (notification) => {
-      // Здесь можно интегрировать отправку уведомлений в Telegram бота
-      const timeLeft = notification.hoursLeft
-        ? `${notification.hoursLeft} hour(s)`
-        : notification.daysLeft
-        ? `${notification.daysLeft} day(s)`
-        : "0";
-      console.log(
-        `[Notification] ${notification.type} for user ${notification.telegramId}: ${timeLeft} left`
-      );
-      // TODO: Интегрировать с Telegram Bot API для отправки реальных уведомлений
+      // Отправляем уведомления через Telegram Bot API
+      try {
+        await notificationService.sendNotification({
+          userId: notification.userId.toString(),
+          telegramId: notification.telegramId,
+          type: notification.type,
+          firstName: notification.firstName,
+          username: notification.username,
+          expiresAt: notification.expiresAt,
+          daysLeft: notification.daysLeft,
+          hoursLeft: notification.hoursLeft,
+          trafficUsedBytes: notification.trafficUsedBytes,
+          trafficLimitBytes: notification.trafficLimitBytes,
+          trafficUsedPercent: notification.trafficUsedPercent,
+        });
+      } catch (error) {
+        console.error(`[SubscriptionScheduler] Ошибка отправки уведомления:`, error);
+      }
     },
   });
 
   // Запускаем планировщик (проверка каждые 30 минут для часовых триалов)
   scheduler.start(30 * 60 * 1000);
 
-  // 7. Создаём Express app
+  // 8. Создаём Express app
   const app = createApp({
     service,
     jwtService,
@@ -113,7 +125,7 @@ async function bootstrap() {
     corsOrigin: config.CORS_ORIGIN,
   });
 
-  // 8. Запускаем сервер
+  // 9. Запускаем сервер
   app.listen(config.HTTP_PORT, config.HTTP_HOST, () => {
     console.log(
       `[BOOT] 🚀 Server listening on http://${config.HTTP_HOST}:${config.HTTP_PORT}`

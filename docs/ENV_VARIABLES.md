@@ -65,7 +65,8 @@ BOT_REGISTRATION_SECRET=your-secure-bot-registration-secret-min-32-chars
 
 ```env
 # Максимальное количество аккаунтов на одного пользователя
-MAX_ACCOUNTS_PER_USER=5
+# По умолчанию: 1 (одна VLESS ссылка на пользователя)
+MAX_ACCOUNTS_PER_USER=1
 
 # Срок действия аккаунта по умолчанию (в днях)
 DEFAULT_ACCOUNT_EXPIRY_DAYS=30
@@ -145,7 +146,7 @@ BOT_USERNAME=your_vpn_bot
 TELEGRAM_MINI_APP_URL=https://t.me/your_vpn_bot/app
 BOT_REGISTRATION_SECRET=generate-strong-random-secret-here-min-64-chars
 
-MAX_ACCOUNTS_PER_USER=5
+MAX_ACCOUNTS_PER_USER=1
 DEFAULT_ACCOUNT_EXPIRY_DAYS=30
 
 TRIAL_PERIOD_HOURS=3

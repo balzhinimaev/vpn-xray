@@ -48,7 +48,7 @@ const BOT_REGISTRATION_SECRET = process.env.BOT_REGISTRATION_SECRET || "";
 
 // User Limits
 const MAX_ACCOUNTS_PER_USER = parseInt(
-  process.env.MAX_ACCOUNTS_PER_USER || "5",
+  process.env.MAX_ACCOUNTS_PER_USER || "1",
   10
 );
 const DEFAULT_ACCOUNT_EXPIRY_DAYS = parseInt(

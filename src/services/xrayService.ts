@@ -73,7 +73,7 @@ export class XrayService {
     this.publicHost = options.publicHost;
     this.defaultFlow = options.defaultFlow;
     this.uuidFn = uuidFn;
-    this.maxAccountsPerUser = options.maxAccountsPerUser || 5;
+    this.maxAccountsPerUser = options.maxAccountsPerUser || 1;
     this.defaultExpiryDays = options.defaultExpiryDays || 30;
   }
 
@@ -132,11 +132,13 @@ export class XrayService {
         ? new Types.ObjectId(input.userId)
         : input.userId;
 
-    // Проверка лимита аккаунтов
+    // Проверка лимита аккаунтов (строго одна VLESS ссылка на пользователя)
     const existingCount = await getUserAccountsCount(userId);
     if (existingCount >= this.maxAccountsPerUser) {
       throw new Error(
-        `Maximum ${this.maxAccountsPerUser} accounts per user allowed`
+        this.maxAccountsPerUser === 1
+          ? "You already have a VLESS account. Only one account per user is allowed."
+          : `Maximum ${this.maxAccountsPerUser} accounts per user allowed`
       );
     }
 

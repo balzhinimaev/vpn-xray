@@ -128,7 +128,7 @@ const subscriptionSchema = new Schema(
     telegramId: { type: String, required: true },
     type: {
       type: String,
-      enum: ["trial", "monthly", "quarterly", "yearly"],
+      enum: ["trial", "weekly", "monthly", "quarterly", "yearly"],
       required: true,
     },
     status: {
