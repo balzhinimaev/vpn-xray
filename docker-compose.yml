@@ -29,8 +29,8 @@ services:
       REFERRAL_BONUS_DAYS: ${REFERRAL_BONUS_DAYS}
       REFERRAL_BONUS_TYPE: ${REFERRAL_BONUS_TYPE}
       BOT_USERNAME: ${BOT_USERNAME}
-    # volumes:
-    #   - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
+    volumes:
+      - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
     # MongoDB на хосте → нужен network_mode: host
     network_mode: host
     restart: unless-stopped
