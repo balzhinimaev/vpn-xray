@@ -31,8 +31,8 @@ services:
       BOT_USERNAME: ${BOT_USERNAME}
     # volumes:
     #   - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
-    ports:
-      - "8080:8080"
+    # MongoDB на хосте → нужен network_mode: host
+    network_mode: host
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
