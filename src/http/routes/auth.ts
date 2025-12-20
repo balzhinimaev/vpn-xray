@@ -172,52 +172,75 @@ export function createAuthRouter(options: AuthRouteOptions) {
             bonusType: config.REFERRAL_BONUS_TYPE,
           });
           
-          if (referralResult.success) {
-            console.log(`[POST /auth/bot-register] Referral successfully processed: ${referralResult.bonusDays} day(s) premium`);
+          if (referralResult.success && referralResult.referrer) {
+            console.log(`[POST /auth/bot-register] Referral successfully processed: ${referralResult.bonusDays} day(s) premium for referrer ${referralResult.referrer.telegramId}`);
             
-            // Реактивируем VLESS аккаунты referrer-а если он был expired/cancelled
-            if (referralResult.referrer?.needsReactivation) {
-              console.log(`[POST /auth/bot-register] Reactivating VLESS accounts for referrer ${referralResult.referrer.telegramId}`);
+            // Обрабатываем VLESS аккаунты referrer-а
+            try {
+              const { User: UserModel } = await import("../../models/index.js");
+              const referrer = await UserModel.findOne({ telegramId: referralResult.referrer.telegramId });
               
-              try {
-                const { User: UserModel } = await import("../../models/index.js");
-                const referrer = await UserModel.findOne({ telegramId: referralResult.referrer.telegramId });
+              if (referrer) {
+                // Ищем ВСЕ VLESS аккаунты referrer-а
+                const allAccounts = await VlessAccount.find({ userId: referrer._id });
+                const activeAccounts = allAccounts.filter(a => a.isActive);
+                const inactiveAccounts = allAccounts.filter(a => !a.isActive);
                 
-                if (referrer) {
-                  // Ищем неактивные VLESS аккаунты referrer-а
-                  const inactiveAccounts = await VlessAccount.find({
-                    userId: referrer._id,
-                    isActive: false,
-                  });
-                  
-                  for (const account of inactiveAccounts) {
-                    try {
-                      // Реактивируем аккаунт в Xray с СУЩЕСТВУЮЩИМ UUID
-                      const xrayClient = (xrayService as any).client;
-                      const inboundInfo = xrayService.getInboundInfo();
-                      
-                      await xrayClient.addUser({
-                        tag: inboundInfo.tag,
-                        email: account.email,
-                        uuid: account.uuid,
-                        flow: account.flow ?? config.DEFAULT_FLOW,
-                        level: 0,
-                      });
-                      
-                      account.isActive = true;
-                      account.expiresAt = referrer.subscriptionEndsAt;
-                      await account.save();
-                      
-                      console.log(`[POST /auth/bot-register] Reactivated VLESS account ${account.email} (UUID: ${account.uuid})`);
-                    } catch (reactivateError) {
-                      console.error(`[POST /auth/bot-register] Failed to reactivate account ${account.email}:`, reactivateError);
-                    }
+                console.log(`[POST /auth/bot-register] Referrer ${referrer.telegramId}: ${allAccounts.length} accounts (${activeAccounts.length} active, ${inactiveAccounts.length} inactive), previous status: ${referralResult.referrer.previousStatus}`);
+                
+                // Реактивируем неактивные аккаунты
+                for (const account of inactiveAccounts) {
+                  try {
+                    const xrayClient = (xrayService as any).client;
+                    const inboundInfo = xrayService.getInboundInfo();
+                    
+                    await xrayClient.addUser({
+                      tag: inboundInfo.tag,
+                      email: account.email,
+                      uuid: account.uuid,
+                      flow: account.flow ?? config.DEFAULT_FLOW,
+                      level: 0,
+                    });
+                    
+                    account.isActive = true;
+                    account.expiresAt = referrer.subscriptionEndsAt;
+                    await account.save();
+                    
+                    console.log(`[POST /auth/bot-register] ✅ Reactivated VLESS account ${account.email}`);
+                  } catch (reactivateError: any) {
+                    console.error(`[POST /auth/bot-register] ❌ Failed to reactivate ${account.email}:`, reactivateError.message || reactivateError);
                   }
                 }
-              } catch (referrerError) {
-                console.error(`[POST /auth/bot-register] Failed to reactivate referrer accounts:`, referrerError);
+                
+                // Обновляем expiresAt для активных аккаунтов
+                for (const account of activeAccounts) {
+                  account.expiresAt = referrer.subscriptionEndsAt;
+                  await account.save();
+                  console.log(`[POST /auth/bot-register] Updated expiresAt for active account ${account.email}`);
+                }
+                
+                // Если у referrer вообще нет аккаунтов — создаём новый
+                if (allAccounts.length === 0) {
+                  console.log(`[POST /auth/bot-register] Referrer has no VLESS accounts, creating one...`);
+                  try {
+                    const vlessResult = await xrayService.createUser({
+                      userId: referrer._id,
+                      telegramId: referrer.telegramId,
+                      remark: referrer.username ? `@${referrer.username}` : `User ${referrer.telegramId}`,
+                    });
+                    console.log(`[POST /auth/bot-register] ✅ Created VLESS account for referrer: ${vlessResult.email}`);
+                  } catch (createError: any) {
+                    console.error(`[POST /auth/bot-register] ❌ Failed to create VLESS for referrer:`, createError.message || createError);
+                  }
+                }
+              } else {
+                console.warn(`[POST /auth/bot-register] Referrer not found in DB: ${referralResult.referrer.telegramId}`);
               }
+            } catch (referrerError: any) {
+              console.error(`[POST /auth/bot-register] Failed to process referrer accounts:`, referrerError.message || referrerError);
             }
+          } else if (referralResult.success) {
+            console.log(`[POST /auth/bot-register] Referral processed but no referrer info returned`);
           } else {
             console.warn(`[POST /auth/bot-register] Referral processing failed: ${referralResult.error}`);
           }

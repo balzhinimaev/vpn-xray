@@ -409,9 +409,10 @@ export async function createReferral(
       return { success: false, error: "Referral already exists" };
     }
 
-    // Сохраняем предыдущий статус для определения необходимости реактивации
+    // Сохраняем предыдущий статус
     const previousStatus = referrer.subscriptionStatus;
-    const needsReactivation = previousStatus === "expired" || previousStatus === "cancelled";
+    // Реактивация нужна если статус не active (expired, cancelled, trial с истёкшим временем/трафиком)
+    const needsReactivation = previousStatus !== "active";
     
     // Начисляем бонус: 1 день безлимитного премиума
     const bonusDays = config.bonusDays || 1;
