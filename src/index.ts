@@ -44,6 +44,12 @@ async function bootstrap() {
     );
   }
 
+  if (!config.BOT_REGISTRATION_SECRET) {
+    console.warn(
+      "[BOOT] WARNING: BOT_REGISTRATION_SECRET is not set. Bot API endpoints (/bot/*) will not be available!"
+    );
+  }
+
   // 3. Инициализация JWT сервиса
   const jwtService = new JWTService({
     secret: config.JWT_SECRET,
