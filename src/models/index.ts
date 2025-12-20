@@ -345,7 +345,23 @@ export function extractTelegramIdFromReferralCode(referralCode: string): string 
 }
 
 /**
+ * Результат создания реферала
+ */
+export interface CreateReferralResult {
+  success: boolean;
+  error?: string;
+  referrer?: {
+    id: string;
+    telegramId: string;
+    previousStatus: string;
+    needsReactivation: boolean; // true если был expired и нужно реактивировать VLESS
+  };
+  bonusDays?: number;
+}
+
+/**
  * Создает реферальную связь между пользователями и начисляет бонусы
+ * Бонус: 1 день безлимитного премиума (статус active)
  */
 export async function createReferral(
   referredTelegramId: string,
@@ -355,7 +371,7 @@ export async function createReferral(
     bonusDays: number;
     bonusType: "traffic" | "days" | "both";
   }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<CreateReferralResult> {
   try {
     // Извлекаем telegramId реферера из кода
     const referrerTelegramId = extractTelegramIdFromReferralCode(referralCode);
@@ -393,25 +409,28 @@ export async function createReferral(
       return { success: false, error: "Referral already exists" };
     }
 
-    // Начисляем бонусы рефереру
-    const bonusTrafficBytes = config.bonusTrafficMB * 1024 * 1024;
+    // Сохраняем предыдущий статус для определения необходимости реактивации
+    const previousStatus = referrer.subscriptionStatus;
+    const needsReactivation = previousStatus === "expired" || previousStatus === "cancelled";
     
-    if (config.bonusType === "traffic" || config.bonusType === "both") {
-      referrer.referralBonusTrafficBytes = (referrer.referralBonusTrafficBytes || 0) + bonusTrafficBytes;
-      referrer.trialTrafficLimitBytes = (referrer.trialTrafficLimitBytes || 0) + bonusTrafficBytes;
-    }
+    // Начисляем бонус: 1 день безлимитного премиума
+    const bonusDays = config.bonusDays || 1;
+    const now = new Date();
+    const bonusMs = bonusDays * 24 * 60 * 60 * 1000;
     
-    if (config.bonusType === "days" || config.bonusType === "both") {
-      referrer.referralBonusDays = (referrer.referralBonusDays || 0) + config.bonusDays;
-      // Продлеваем подписку
-      if (referrer.subscriptionStatus === "trial" && referrer.trialEndsAt) {
-        referrer.trialEndsAt = new Date(referrer.trialEndsAt.getTime() + config.bonusDays * 24 * 60 * 60 * 1000);
-      } else if (referrer.subscriptionStatus === "active" && referrer.subscriptionEndsAt) {
-        referrer.subscriptionEndsAt = new Date(referrer.subscriptionEndsAt.getTime() + config.bonusDays * 24 * 60 * 60 * 1000);
-      }
-    }
-    
+    referrer.referralBonusDays = (referrer.referralBonusDays || 0) + bonusDays;
     referrer.referralCount = (referrer.referralCount || 0) + 1;
+    
+    // Определяем новую дату окончания подписки
+    if (referrer.subscriptionStatus === "active" && referrer.subscriptionEndsAt) {
+      // Продлеваем существующую активную подписку
+      referrer.subscriptionEndsAt = new Date(referrer.subscriptionEndsAt.getTime() + bonusMs);
+    } else {
+      // Активируем премиум (для trial, expired, cancelled)
+      referrer.subscriptionStatus = "active";
+      referrer.subscriptionEndsAt = new Date(now.getTime() + bonusMs);
+    }
+    
     await referrer.save();
 
     // Обновляем приглашенного пользователя
@@ -426,17 +445,26 @@ export async function createReferral(
       referredTelegramId: referred.telegramId,
       referralCode,
       bonusGranted: true,
-      bonusType: config.bonusType,
-      bonusTrafficMB: config.bonusTrafficMB,
-      bonusDays: config.bonusDays,
+      bonusType: "days", // Всегда дни премиума
+      bonusTrafficMB: 0,
+      bonusDays: bonusDays,
       bonusGrantedAt: new Date(),
       isActive: true,
     });
 
     console.log(`[createReferral] Successfully created referral: ${referrerTelegramId} -> ${referredTelegramId}`);
-    console.log(`[createReferral] Bonus granted: ${config.bonusType}, traffic: ${config.bonusTrafficMB}MB, days: ${config.bonusDays}`);
+    console.log(`[createReferral] Bonus granted: ${bonusDays} day(s) premium, previous status: ${previousStatus}, needs reactivation: ${needsReactivation}`);
 
-    return { success: true };
+    return { 
+      success: true,
+      referrer: {
+        id: referrer._id.toString(),
+        telegramId: referrer.telegramId,
+        previousStatus,
+        needsReactivation,
+      },
+      bonusDays,
+    };
   } catch (error: any) {
     console.error("[createReferral] Error:", error);
     return { success: false, error: error.message || "Unknown error" };

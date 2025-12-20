@@ -81,14 +81,14 @@ const NOTIFICATION_EXPIRY_HOURS_BEFORE = [2, 1]; // За сколько часо
 
 // Referral System
 const REFERRAL_BONUS_TRAFFIC_MB = parseInt(
-  process.env.REFERRAL_BONUS_TRAFFIC_MB || "50",
+  process.env.REFERRAL_BONUS_TRAFFIC_MB || "0",
   10
-); // Бонус трафика за каждого приглашенного (MB)
+); // Бонус трафика за каждого приглашенного (MB) - deprecated, используем дни премиума
 const REFERRAL_BONUS_DAYS = parseInt(
   process.env.REFERRAL_BONUS_DAYS || "1",
   10
-); // Бонусные дни подписки за каждого приглашенного
-const REFERRAL_BONUS_TYPE = (process.env.REFERRAL_BONUS_TYPE || "traffic") as "traffic" | "days" | "both"; // Тип бонуса
+); // Бонусные дни безлимитного премиума за каждого приглашенного
+const REFERRAL_BONUS_TYPE = (process.env.REFERRAL_BONUS_TYPE || "days") as "traffic" | "days" | "both"; // Тип бонуса (days = безлимитный премиум)
 
 export const config = {
   HTTP_ADDR,

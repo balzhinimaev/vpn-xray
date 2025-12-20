@@ -83,10 +83,17 @@ export function createUsersRouter(
         const email = decodeURIComponent(req.params.email);
         const reset = String(req.query.reset || "false") === "true";
         const stats = await service.getTrafficByEmail(email, reset);
-        const { email: statsEmail, resetApplied, ...restStats } = stats ?? {};
+        const { email: statsEmail, resetApplied, uplink, downlink, total, ...restStats } = stats ?? {};
+        
+        // Конвертируем байты в МБ
+        const toMB = (bytes: number) => Math.round((bytes / 1024 / 1024) * 100) / 100;
+        
         res.json({
           email: statsEmail ?? email,
           resetApplied: resetApplied ?? !!reset,
+          uplink: toMB(uplink ?? 0),
+          downlink: toMB(downlink ?? 0),
+          total: toMB(total ?? 0),
           ...restStats,
         });
       } catch (err: any) {

@@ -173,7 +173,51 @@ export function createAuthRouter(options: AuthRouteOptions) {
           });
           
           if (referralResult.success) {
-            console.log(`[POST /auth/bot-register] Referral successfully processed`);
+            console.log(`[POST /auth/bot-register] Referral successfully processed: ${referralResult.bonusDays} day(s) premium`);
+            
+            // Реактивируем VLESS аккаунты referrer-а если он был expired/cancelled
+            if (referralResult.referrer?.needsReactivation) {
+              console.log(`[POST /auth/bot-register] Reactivating VLESS accounts for referrer ${referralResult.referrer.telegramId}`);
+              
+              try {
+                const { User: UserModel } = await import("../../models/index.js");
+                const referrer = await UserModel.findOne({ telegramId: referralResult.referrer.telegramId });
+                
+                if (referrer) {
+                  // Ищем неактивные VLESS аккаунты referrer-а
+                  const inactiveAccounts = await VlessAccount.find({
+                    userId: referrer._id,
+                    isActive: false,
+                  });
+                  
+                  for (const account of inactiveAccounts) {
+                    try {
+                      // Реактивируем аккаунт в Xray с СУЩЕСТВУЮЩИМ UUID
+                      const xrayClient = (xrayService as any).client;
+                      const inboundInfo = xrayService.getInboundInfo();
+                      
+                      await xrayClient.addUser({
+                        tag: inboundInfo.tag,
+                        email: account.email,
+                        uuid: account.uuid,
+                        flow: account.flow ?? config.DEFAULT_FLOW,
+                        level: 0,
+                      });
+                      
+                      account.isActive = true;
+                      account.expiresAt = referrer.subscriptionEndsAt;
+                      await account.save();
+                      
+                      console.log(`[POST /auth/bot-register] Reactivated VLESS account ${account.email} (UUID: ${account.uuid})`);
+                    } catch (reactivateError) {
+                      console.error(`[POST /auth/bot-register] Failed to reactivate account ${account.email}:`, reactivateError);
+                    }
+                  }
+                }
+              } catch (referrerError) {
+                console.error(`[POST /auth/bot-register] Failed to reactivate referrer accounts:`, referrerError);
+              }
+            }
           } else {
             console.warn(`[POST /auth/bot-register] Referral processing failed: ${referralResult.error}`);
           }
