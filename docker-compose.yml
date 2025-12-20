@@ -13,7 +13,7 @@ services:
     environment:
       NODE_ENV: production
       HTTP_ADDR: 0.0.0.0:8080
-      GRPC_ADDR: 127.0.0.1:10085
+      GRPC_ADDR: ${GRPC_ADDR:-127.0.0.1:10085}
       CORS_ORIGIN: https://anoname.ru
       X_PUBLIC_HOST: ${X_PUBLIC_HOST}
       X_IN_TAG: ${X_IN_TAG}
@@ -29,10 +29,10 @@ services:
       REFERRAL_BONUS_DAYS: ${REFERRAL_BONUS_DAYS}
       REFERRAL_BONUS_TYPE: ${REFERRAL_BONUS_TYPE}
       BOT_USERNAME: ${BOT_USERNAME}
-    volumes:
-      - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
-    # Нужен доступ к 127.0.0.1:10085 на хосте → host network (Linux)
-    network_mode: host
+    # volumes:
+    #   - /usr/local/etc/xray/config.json:/usr/local/etc/xray/config.json:ro
+    ports:
+      - "8080:8080"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
