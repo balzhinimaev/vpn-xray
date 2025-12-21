@@ -192,7 +192,7 @@ export class XrayService {
         })();
 
     // Сохраняем в MongoDB
-    const account = await VlessAccount.create({
+    const account = new VlessAccount({
       userId,
       telegramId: input.telegramId,
       email,
@@ -206,7 +206,9 @@ export class XrayService {
       rawConfig: raw,
       isActive: true,
       expiresAt,
-    } as VlessAccountInput, options.session ? { session: options.session } : undefined);
+    } as VlessAccountInput);
+
+    await account.save(options.session ? { session: options.session } : undefined);
 
     return {
       id: account._id.toString(),
