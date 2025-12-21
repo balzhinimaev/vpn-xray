@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import type { ClientSession } from "mongoose";
 import { Types } from "mongoose";
 
 import { buildVlessURI, InboundInfo } from "../xray/inbound.js";
@@ -7,6 +8,7 @@ import { createGrpcClient } from "../xray/clients/grpcClient.js";
 import type { XrayClient } from "../xray/clients/types.js";
 import {
   VlessAccount,
+  VlessAccountInput,
   getUserAccountsCount,
   saveTrafficSnapshot,
 } from "../models/index.js";
@@ -33,6 +35,18 @@ export interface CreateUserInput {
   telegramId: string;
   flow?: string;
   remark?: string;
+}
+
+export interface CreateUserOptions {
+  /**
+   * Позволяет создать/обновить VLESS аккаунт в рамках MongoDB транзакции.
+   * Важно: Xray gRPC вызовы не транзакционные.
+   */
+  session?: ClientSession;
+  /**
+   * Если задано, будет использовано как expiresAt вместо defaultExpiryDays.
+   */
+  expiresAt?: Date;
 }
 
 export interface CreateAdminUserInput {
@@ -124,7 +138,10 @@ export class XrayService {
   /**
    * Создаёт новый VLESS аккаунт с привязкой к Telegram пользователю
    */
-  async createUser(input: CreateUserInput): Promise<CreateUserResult> {
+  async createUser(
+    input: CreateUserInput,
+    options: CreateUserOptions = {}
+  ): Promise<CreateUserResult> {
     this.ensurePublicHost();
 
     const userId =
@@ -166,8 +183,13 @@ export class XrayService {
     });
 
     // Вычисляем дату истечения
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + this.defaultExpiryDays);
+    const expiresAt = options.expiresAt
+      ? new Date(options.expiresAt)
+      : (() => {
+          const d = new Date();
+          d.setDate(d.getDate() + this.defaultExpiryDays);
+          return d;
+        })();
 
     // Сохраняем в MongoDB
     const account = await VlessAccount.create({
@@ -184,7 +206,7 @@ export class XrayService {
       rawConfig: raw,
       isActive: true,
       expiresAt,
-    });
+    } as VlessAccountInput, options.session ? { session: options.session } : undefined);
 
     return {
       id: account._id.toString(),

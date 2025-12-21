@@ -104,6 +104,7 @@ export function createApp(options: AppOptions) {
       "/bot",
       createBotRouter({
         botRegistrationSecret,
+        xrayService: service,
       })
     );
   }

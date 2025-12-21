@@ -86,6 +86,7 @@ const vlessAccountSchema = new Schema(
 
 export type VlessAccountSchemaType = InferSchemaType<typeof vlessAccountSchema>;
 export type VlessAccountDocument = HydratedDocument<VlessAccountSchemaType>;
+export type VlessAccountInput = Omit<VlessAccountSchemaType, 'createdAt' | 'updatedAt'>;
 export const VlessAccount: Model<VlessAccountSchemaType> =
   mongoose.models.VlessAccount ??
   mongoose.model<VlessAccountSchemaType>("VlessAccount", vlessAccountSchema);
@@ -128,7 +129,7 @@ const subscriptionSchema = new Schema(
     telegramId: { type: String, required: true },
     type: {
       type: String,
-      enum: ["trial", "weekly", "monthly", "quarterly", "yearly"],
+      enum: ["trial", "weekly", "biweekly", "monthly", "quarterly", "yearly"],
       required: true,
     },
     status: {
@@ -157,6 +158,42 @@ export type SubscriptionDocument = HydratedDocument<SubscriptionSchemaType>;
 export const Subscription: Model<SubscriptionSchemaType> =
   mongoose.models.Subscription ??
   mongoose.model<SubscriptionSchemaType>("Subscription", subscriptionSchema);
+
+const paymentSchema = new Schema(
+  {
+    id: { type: String, required: true, unique: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    telegramId: { type: String, required: true },
+    telegramPaymentId: { type: String, required: true, unique: true },
+    providerPaymentId: { type: String },
+    amount: { type: Number, required: true },
+    currency: { type: String, required: true },
+    type: {
+      type: String,
+      enum: ["telegram_stars", "yookassa", "crypto"],
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "completed", "failed", "refunded"],
+      required: true,
+    },
+    period: { type: String, required: true },
+    metadata: { type: String },
+    subscriptionId: { type: Schema.Types.ObjectId, ref: "Subscription" },
+    vpnAccountId: { type: Schema.Types.ObjectId, ref: "VlessAccount" },
+  },
+  { timestamps: true }
+);
+
+paymentSchema.index({ telegramPaymentId: 1 }, { unique: true });
+paymentSchema.index({ userId: 1, createdAt: -1 });
+
+export type PaymentSchemaType = InferSchemaType<typeof paymentSchema>;
+export type PaymentDocument = HydratedDocument<PaymentSchemaType>;
+export const Payment: Model<PaymentSchemaType> =
+  mongoose.models.Payment ??
+  mongoose.model<PaymentSchemaType>("Payment", paymentSchema);
 
 const notificationLogSchema = new Schema(
   {
