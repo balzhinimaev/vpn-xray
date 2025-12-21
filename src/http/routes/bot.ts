@@ -306,7 +306,7 @@ export function createBotRouter(options: BotRouteOptions) {
         }
 
         // link payment -> subscription/vpn for deterministic idempotent response
-        paymentDoc.subscriptionId = subscription._id;
+        paymentDoc.subscriptionId = subscription!._id;
         paymentDoc.vpnAccountId = vpnAccount?._id;
         await paymentDoc.save({ session });
 
@@ -349,11 +349,11 @@ export function createBotRouter(options: BotRouteOptions) {
             createdAt: toIso(paymentDoc.createdAt),
           },
           subscription: {
-            id: subscription._id.toString(),
-            type: subscription.type,
+            id: subscription!._id.toString(),
+            type: subscription!.type,
             status: "active",
-            startsAt: toIso(subscription.startsAt),
-            expiresAt: toIso(subscription.endsAt),
+            startsAt: toIso(subscription!.startsAt),
+            expiresAt: toIso(subscription!.endsAt),
             daysAdded: plan.days,
           },
           vpnAccount: vpnAccount ? {
