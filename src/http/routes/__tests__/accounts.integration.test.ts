@@ -1,6 +1,4 @@
-import assert from "node:assert/strict";
 import { AddressInfo } from "node:net";
-import test from "node:test";
 
 import { createApp } from "../../../app.js";
 import { JWTService } from "../../../auth/jwtService.js";
@@ -57,10 +55,10 @@ test("GET /api/accounts returns accounts for an authenticated user", async () =>
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      assert.equal(response.status, 200);
+      expect(response.status).toBe(200);
       const body = await response.json();
-      assert.equal(body.total, 1);
-      assert.equal(body.accounts[0].id, "acc-1");
+      expect(body.total).toBe(1);
+      expect(body.accounts[0].id).toBe("acc-1");
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
@@ -77,7 +75,7 @@ test("GET /api/accounts rejects requests without authentication", async () => {
 
   try {
     const response = await fetch(url);
-    assert.equal(response.status, 401);
+    expect(response.status).toBe(401);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

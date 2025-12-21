@@ -1,6 +1,3 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-
 import { validateTelegramInitData } from "../../auth/telegramAuth.js";
 
 const botToken = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11";
@@ -18,8 +15,8 @@ describe("validateTelegramInitData", () => {
       Number.MAX_SAFE_INTEGER
     );
 
-    assert.equal(parsed.auth_date, 1620000000);
-    assert.equal(parsed.user.id, 123456789);
+    expect(parsed.auth_date).toBe(1620000000);
+    expect(parsed.user.id).toBe(123456789);
   });
 
   it("rejects tampered auth_date values", () => {
@@ -28,8 +25,8 @@ describe("validateTelegramInitData", () => {
       "auth_date=1620000001"
     );
 
-    assert.throws(() => {
+    expect(() => {
       validateTelegramInitData(tamperedInitData, botToken, Number.MAX_SAFE_INTEGER);
-    }, /Invalid initData signature/);
+    }).toThrow(/Invalid initData signature/);
   });
 });

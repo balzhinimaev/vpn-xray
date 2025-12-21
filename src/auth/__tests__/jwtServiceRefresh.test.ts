@@ -1,5 +1,3 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
 import { Types } from "mongoose";
 
 import { JWTService } from "../jwtService.js";
@@ -17,8 +15,7 @@ describe("JWTService refresh expiration helper", () => {
 
     const expiresAt = service.getRefreshExpiresAt(issuedAt);
 
-    assert.equal(
-      expiresAt.toISOString(),
+    expect(expiresAt.toISOString()).toBe(
       new Date(issuedAt.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
     );
   });
@@ -31,13 +28,13 @@ describe("JWTService refresh expiration helper", () => {
     );
 
     const payload = service.verifyRefreshToken(refreshToken);
-    assert.ok(payload.exp, "Refresh token payload should include exp");
-    assert.ok(payload.iat, "Refresh token payload should include iat");
+    expect(payload.exp).toBeDefined();
+    expect(payload.iat).toBeDefined();
 
     const helperExpires = service.getRefreshExpiresAt(
       new Date((payload.iat as number) * 1000)
     );
 
-    assert.equal(helperExpires.getTime(), (payload.exp as number) * 1000);
+    expect(helperExpires.getTime()).toBe((payload.exp as number) * 1000);
   });
 });

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "test": "node --test --import tsx $(find src -name '*.test.ts' -print)",
+    "test": "jest",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "proto:fetch": "bash scripts/fetch-proto.sh",
@@ -29,7 +29,9 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
+    "mongodb-memory-server": "^10.0.0",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/morgan": "^1.9.9",
     "@types/node": "^20.12.13",
@@ -37,6 +39,8 @@
     "@types/uuid": "^10.0.0",
     "grpc_tools_node_protoc_ts": "^5.3.3",
     "grpc-tools": "^1.12.4",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.6",
     "tslib": "^2.6.3",
     "tsx": "^4.16.2",
     "typescript": "^5.6.3"

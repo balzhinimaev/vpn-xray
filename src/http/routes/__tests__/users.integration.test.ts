@@ -1,6 +1,4 @@
-import assert from "node:assert/strict";
 import { AddressInfo } from "node:net";
-import test from "node:test";
 
 import { createApp } from "../../../app.js";
 import { JWTService } from "../../../auth/jwtService.js";
@@ -96,10 +94,10 @@ test("GET /info returns inbound details when authorized", async () => {
       headers: { Authorization: `Bearer ${API_TOKEN}` },
     });
 
-    assert.equal(response.status, 200);
+    expect(response.status).toBe(200);
     const body = await response.json();
-    assert.equal(body.inboundTag, serviceMock.inbound.tag);
-    assert.equal(body.port, serviceMock.inbound.port);
+    expect(body.inboundTag).toBe(serviceMock.inbound.tag);
+    expect(body.port).toBe(serviceMock.inbound.port);
   });
 });
 
@@ -117,11 +115,11 @@ test("POST /users creates a user with provided email", async () => {
       body: JSON.stringify({ email: "admin@example.com", flow: "xtls-rprx-vision" }),
     });
 
-    assert.equal(response.status, 200);
+    expect(response.status).toBe(200);
     const body = await response.json();
-    assert.equal(body.email, "admin@example.com");
-    assert.equal(serviceMock.lastCreateInput.email, "admin@example.com");
-    assert.equal(serviceMock.lastCreateInput.flow, "xtls-rprx-vision");
+    expect(body.email).toBe("admin@example.com");
+    expect(serviceMock.lastCreateInput.email).toBe("admin@example.com");
+    expect(serviceMock.lastCreateInput.flow).toBe("xtls-rprx-vision");
   });
 });
 
@@ -137,12 +135,12 @@ test("GET /users/:email/traffic proxies traffic data", async () => {
       }
     );
 
-    assert.equal(response.status, 200);
+    expect(response.status).toBe(200);
     const body = await response.json();
-    assert.equal(body.email, "admin@example.com");
-    assert.equal(body.resetApplied, true);
-    assert.equal(serviceMock.lastTrafficArgs?.email, "admin@example.com");
-    assert.equal(serviceMock.lastTrafficArgs?.reset, true);
+    expect(body.email).toBe("admin@example.com");
+    expect(body.resetApplied).toBe(true);
+    expect(serviceMock.lastTrafficArgs?.email).toBe("admin@example.com");
+    expect(serviceMock.lastTrafficArgs?.reset).toBe(true);
   });
 });
 
@@ -156,10 +154,10 @@ test("DELETE /users/:email removes the user via service", async () => {
       headers: { Authorization: `Bearer ${API_TOKEN}` },
     });
 
-    assert.equal(response.status, 200);
+    expect(response.status).toBe(200);
     const body = await response.json();
-    assert.equal(body.ok, true);
-    assert.equal(serviceMock.lastDeletedEmail, "admin@example.com");
+    expect(body.ok).toBe(true);
+    expect(serviceMock.lastDeletedEmail).toBe("admin@example.com");
   });
 });
 
@@ -174,7 +172,7 @@ test("/users endpoints require API token", async () => {
       body: JSON.stringify({ email: "missing-auth@example.com" }),
     });
 
-    assert.equal(response.status, 401);
-    assert.equal(serviceMock.lastCreateInput, null);
+    expect(response.status).toBe(401);
+    expect(serviceMock.lastCreateInput).toBe(null);
   });
 });
