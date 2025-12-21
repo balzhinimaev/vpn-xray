@@ -1,5 +1,4 @@
 import { Router, Request, Response } from "express";
-import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import type { XrayService } from "../../services/xrayService.js";
 import { config } from "../../config/index.js";
@@ -149,214 +148,48 @@ export function createBotRouter(options: BotRouteOptions) {
         });
       }
 
-      const session = await mongoose.startSession();
-      let responseBody: any = null;
+      console.log("[POST /bot/payments/stars] start", {
+        telegramId,
+        paymentId,
+        providerPaymentId: providerPaymentId ? "(provided)" : "(none)",
+        totalAmount,
+        currency,
+        period,
+      });
 
-      try {
-        await session.withTransaction(async () => {
-          console.log("[POST /bot/payments/stars] start", {
-            telegramId,
-            paymentId,
-            providerPaymentId: providerPaymentId ? "(provided)" : "(none)",
-            totalAmount,
-            currency,
-            period,
-          });
+      const user = await User.findOne({ telegramId }).exec();
+      if (!user) {
+        return res.status(404).json({ success: false, error: "User not found", code: "USER_NOT_FOUND" });
+      }
 
-          const user = await User.findOne({ telegramId }).session(session).exec();
-          if (!user) {
-            responseBody = { success: false, error: "User not found", code: "USER_NOT_FOUND" };
-            return;
-          }
+      // Double-check for duplicate (already checked above, but for safety)
+      const duplicate = await Payment.findOne({ telegramPaymentId: paymentId }).exec();
+      if (duplicate) {
+        const subscription = duplicate.subscriptionId
+          ? await Subscription.findById(duplicate.subscriptionId).exec()
+          : await Subscription.findOne({ userId: user._id, status: "active" }).sort({ endsAt: -1 }).exec();
 
-          const duplicate = await Payment.findOne({ telegramPaymentId: paymentId }).session(session).exec();
-          if (duplicate) {
-            // idempotent inside transaction too
-            const subscription = duplicate.subscriptionId
-              ? await Subscription.findById(duplicate.subscriptionId).session(session).exec()
-              : await Subscription.findOne({ userId: user._id, status: "active" }).session(session).sort({ endsAt: -1 }).exec();
+        const vpnAccount = duplicate.vpnAccountId
+          ? await VlessAccount.findById(duplicate.vpnAccountId).exec()
+          : await VlessAccount.findOne({ userId: user._id, isActive: true }).sort({ createdAt: -1 }).exec();
 
-            const vpnAccount = duplicate.vpnAccountId
-              ? await VlessAccount.findById(duplicate.vpnAccountId).session(session).exec()
-              : await VlessAccount.findOne({ userId: user._id, isActive: true }).session(session).sort({ createdAt: -1 }).exec();
-
-            responseBody = {
-              success: true,
-              payment: {
-                id: duplicate.id,
-                telegramPaymentId: duplicate.telegramPaymentId,
-                amount: duplicate.amount,
-                status: "completed",
-                createdAt: toIso(duplicate.createdAt),
-              },
-              subscription: subscription ? {
-                id: subscription._id.toString(),
-                type: subscription.type,
-                status: "active",
-                startsAt: toIso(subscription.startsAt),
-                expiresAt: toIso(subscription.endsAt),
-                daysAdded: plan.days,
-              } : null,
-              vpnAccount: vpnAccount ? {
-                id: vpnAccount._id.toString(),
-                uuid: vpnAccount.uuid,
-                email: vpnAccount.email,
-                link: vpnAccount.link,
-                isActive: vpnAccount.isActive,
-                expiresAt: toIso(vpnAccount.expiresAt),
-              } : null,
-            };
-            return;
-          }
-
-          const now = new Date();
-          const activeSubscription = await Subscription.findOne({
-            userId: user._id,
-            status: "active",
-            endsAt: { $gt: now },
-          }).session(session).sort({ endsAt: -1 }).exec();
-
-          const base = activeSubscription?.endsAt && activeSubscription.endsAt > now
-            ? new Date(activeSubscription.endsAt)
-            : now;
-
-          const startsAt = activeSubscription?.startsAt ?? new Date(base);
-          const endsAt = new Date(base);
-          endsAt.setDate(endsAt.getDate() + plan.days);
-
-          const paymentDoc = await Payment.create([{
-            id: uuidv4(),
-            userId: user._id,
-            telegramId: user.telegramId,
-            telegramPaymentId: paymentId,
-            providerPaymentId,
-            amount: totalAmount,
-            currency: "XTR",
-            type: "telegram_stars",
-            status: "completed",
-            period,
-            metadata: invoicePayload,
-          }], { session }).then((arr) => arr[0]);
-
-          let subscription = activeSubscription;
-          if (subscription) {
-            subscription.endsAt = endsAt;
-            subscription.status = "active";
-            subscription.type = plan.type;
-            await subscription.save({ session });
-          } else {
-            subscription = await Subscription.create([{
-              userId: user._id,
-              telegramId: user.telegramId,
-              type: plan.type,
-              status: "active",
-              startsAt,
-              endsAt,
-              price: totalAmount,
-              currency: "XTR",
-              paymentProvider: "Telegram Stars",
-              paymentId: paymentId,
-              autoRenew: false,
-            }], { session }).then((arr) => arr[0]);
-          }
-
-        // update user premium status
-        user.subscriptionStatus = "active";
-        user.subscriptionEndsAt = endsAt;
-        await user.save({ session });
-
-        // ensure/activate vpn account
-        let vpnAccount = await VlessAccount.findOne({ userId: user._id }).session(session).sort({ createdAt: -1 }).exec();
-
-        if (!vpnAccount) {
-          // this will call Xray and then create VlessAccount doc in this transaction
-          const created = await xrayService.createUser(
-            {
-              userId: user._id,
-              telegramId: user.telegramId,
-              flow: config.DEFAULT_FLOW,
-              remark: user.username ? `@${user.username}` : `User ${user.telegramId}`,
-            },
-            { session, expiresAt: endsAt }
-          );
-          vpnAccount = await VlessAccount.findById(created.id).session(session).exec();
-        } else if (!vpnAccount.isActive) {
-          // reactivate in Xray using existing UUID/email, then update db in tx
-          try {
-            const xrayClient = (xrayService as any).client;
-            const inboundInfo = xrayService.getInboundInfo();
-
-            await xrayClient.addUser({
-              tag: inboundInfo.tag,
-              email: vpnAccount.email,
-              uuid: vpnAccount.uuid,
-              flow: vpnAccount.flow ?? config.DEFAULT_FLOW,
-              level: 0,
-            });
-
-            vpnAccount.isActive = true;
-          } catch (e: any) {
-            console.error("[POST /bot/payments/stars] failed to reactivate VLESS in Xray:", e?.message || e);
-          }
-
-          vpnAccount.expiresAt = endsAt;
-          await vpnAccount.save({ session });
-        } else {
-          vpnAccount.expiresAt = endsAt;
-          await vpnAccount.save({ session });
-        }
-
-        // link payment -> subscription/vpn for deterministic idempotent response
-        paymentDoc.subscriptionId = subscription!._id;
-        paymentDoc.vpnAccountId = vpnAccount?._id;
-        await paymentDoc.save({ session });
-
-        // referral bonus on first payment (safe: only if referral record exists and bonus not granted yet)
-        const previousPaymentsCount = await Payment.countDocuments({ userId: user._id }).session(session).exec();
-        const isFirstPayment = previousPaymentsCount === 1; // includes current paymentDoc
-        if (isFirstPayment && user.referredBy) {
-          const ref = await Referral.findOne({ referredTelegramId: user.telegramId }).session(session).exec();
-          if (ref && !ref.bonusGranted) {
-            const bonusDays = config.REFERRAL_BONUS_DAYS || 1;
-            const bonusMs = bonusDays * 24 * 60 * 60 * 1000;
-
-            const referrer = await User.findOne({ telegramId: user.referredBy }).session(session).exec();
-            if (referrer) {
-              const refBase = (referrer.subscriptionStatus === "active" && referrer.subscriptionEndsAt && referrer.subscriptionEndsAt > now)
-                ? new Date(referrer.subscriptionEndsAt)
-                : now;
-
-              referrer.subscriptionStatus = "active";
-              referrer.subscriptionEndsAt = new Date(refBase.getTime() + bonusMs);
-              referrer.referralBonusDays = (referrer.referralBonusDays || 0) + bonusDays;
-              await referrer.save({ session });
-
-              // mark bonus granted
-              ref.bonusGranted = true;
-              ref.bonusGrantedAt = new Date();
-              ref.bonusDays = bonusDays;
-              await ref.save({ session });
-            }
-          }
-        }
-
-        responseBody = {
+        return res.json({
           success: true,
           payment: {
-            id: paymentDoc.id,
-            telegramPaymentId: paymentDoc.telegramPaymentId,
-            amount: paymentDoc.amount,
+            id: duplicate.id,
+            telegramPaymentId: duplicate.telegramPaymentId,
+            amount: duplicate.amount,
             status: "completed",
-            createdAt: toIso(paymentDoc.createdAt),
+            createdAt: toIso(duplicate.createdAt),
           },
-          subscription: {
-            id: subscription!._id.toString(),
-            type: subscription!.type,
+          subscription: subscription ? {
+            id: subscription._id.toString(),
+            type: subscription.type,
             status: "active",
-            startsAt: toIso(subscription!.startsAt),
-            expiresAt: toIso(subscription!.endsAt),
+            startsAt: toIso(subscription.startsAt),
+            expiresAt: toIso(subscription.endsAt),
             daysAdded: plan.days,
-          },
+          } : null,
           vpnAccount: vpnAccount ? {
             id: vpnAccount._id.toString(),
             uuid: vpnAccount.uuid,
@@ -365,19 +198,165 @@ export function createBotRouter(options: BotRouteOptions) {
             isActive: vpnAccount.isActive,
             expiresAt: toIso(vpnAccount.expiresAt),
           } : null,
-        };
         });
-      } finally {
-        await session.endSession();
       }
 
-      if (!responseBody) {
-        return res.status(500).json({ success: false, error: "Internal error", code: "INTERNAL_ERROR" });
+      const now = new Date();
+      const activeSubscription = await Subscription.findOne({
+        userId: user._id,
+        status: "active",
+        endsAt: { $gt: now },
+      }).sort({ endsAt: -1 }).exec();
+
+      const base = activeSubscription?.endsAt && activeSubscription.endsAt > now
+        ? new Date(activeSubscription.endsAt)
+        : now;
+
+      const startsAt = activeSubscription?.startsAt ?? new Date(base);
+      const endsAt = new Date(base);
+      endsAt.setDate(endsAt.getDate() + plan.days);
+
+      const paymentDoc = await Payment.create({
+        id: uuidv4(),
+        userId: user._id,
+        telegramId: user.telegramId,
+        telegramPaymentId: paymentId,
+        providerPaymentId,
+        amount: totalAmount,
+        currency: "XTR",
+        type: "telegram_stars",
+        status: "completed",
+        period,
+        metadata: invoicePayload,
+      });
+
+      let subscription = activeSubscription;
+      if (subscription) {
+        subscription.endsAt = endsAt;
+        subscription.status = "active";
+        subscription.type = plan.type;
+        await subscription.save();
+      } else {
+        subscription = await Subscription.create({
+          userId: user._id,
+          telegramId: user.telegramId,
+          type: plan.type,
+          status: "active",
+          startsAt,
+          endsAt,
+          price: totalAmount,
+          currency: "XTR",
+          paymentProvider: "Telegram Stars",
+          paymentId: paymentId,
+          autoRenew: false,
+        });
       }
-      if (responseBody.success === false) {
-        const status = responseBody.code === "USER_NOT_FOUND" ? 404 : 400;
-        return res.status(status).json(responseBody);
+
+      // update user premium status
+      user.subscriptionStatus = "active";
+      user.subscriptionEndsAt = endsAt;
+      await user.save();
+
+      // ensure/activate vpn account
+      let vpnAccount = await VlessAccount.findOne({ userId: user._id }).sort({ createdAt: -1 }).exec();
+
+      if (!vpnAccount) {
+        const created = await xrayService.createUser(
+          {
+            userId: user._id,
+            telegramId: user.telegramId,
+            flow: config.DEFAULT_FLOW,
+            remark: user.username ? `@${user.username}` : `User ${user.telegramId}`,
+          },
+          { expiresAt: endsAt }
+        );
+        vpnAccount = await VlessAccount.findById(created.id).exec();
+      } else if (!vpnAccount.isActive) {
+        // reactivate in Xray using existing UUID/email
+        try {
+          const xrayClient = (xrayService as any).client;
+          const inboundInfo = xrayService.getInboundInfo();
+
+          await xrayClient.addUser({
+            tag: inboundInfo.tag,
+            email: vpnAccount.email,
+            uuid: vpnAccount.uuid,
+            flow: vpnAccount.flow ?? config.DEFAULT_FLOW,
+            level: 0,
+          });
+
+          vpnAccount.isActive = true;
+        } catch (e: any) {
+          console.error("[POST /bot/payments/stars] failed to reactivate VLESS in Xray:", e?.message || e);
+        }
+
+        vpnAccount.expiresAt = endsAt;
+        await vpnAccount.save();
+      } else {
+        vpnAccount.expiresAt = endsAt;
+        await vpnAccount.save();
       }
+
+      // link payment -> subscription/vpn for deterministic idempotent response
+      paymentDoc.subscriptionId = subscription!._id;
+      paymentDoc.vpnAccountId = vpnAccount?._id;
+      await paymentDoc.save();
+
+      // referral bonus on first payment (safe: only if referral record exists and bonus not granted yet)
+      const previousPaymentsCount = await Payment.countDocuments({ userId: user._id }).exec();
+      const isFirstPayment = previousPaymentsCount === 1; // includes current paymentDoc
+      if (isFirstPayment && user.referredBy) {
+        const ref = await Referral.findOne({ referredTelegramId: user.telegramId }).exec();
+        if (ref && !ref.bonusGranted) {
+          const bonusDays = config.REFERRAL_BONUS_DAYS || 1;
+          const bonusMs = bonusDays * 24 * 60 * 60 * 1000;
+
+          const referrer = await User.findOne({ telegramId: user.referredBy }).exec();
+          if (referrer) {
+            const refBase = (referrer.subscriptionStatus === "active" && referrer.subscriptionEndsAt && referrer.subscriptionEndsAt > now)
+              ? new Date(referrer.subscriptionEndsAt)
+              : now;
+
+            referrer.subscriptionStatus = "active";
+            referrer.subscriptionEndsAt = new Date(refBase.getTime() + bonusMs);
+            referrer.referralBonusDays = (referrer.referralBonusDays || 0) + bonusDays;
+            await referrer.save();
+
+            // mark bonus granted
+            ref.bonusGranted = true;
+            ref.bonusGrantedAt = new Date();
+            ref.bonusDays = bonusDays;
+            await ref.save();
+          }
+        }
+      }
+
+      const responseBody = {
+        success: true,
+        payment: {
+          id: paymentDoc.id,
+          telegramPaymentId: paymentDoc.telegramPaymentId,
+          amount: paymentDoc.amount,
+          status: "completed",
+          createdAt: toIso(paymentDoc.createdAt),
+        },
+        subscription: {
+          id: subscription!._id.toString(),
+          type: subscription!.type,
+          status: "active",
+          startsAt: toIso(subscription!.startsAt),
+          expiresAt: toIso(subscription!.endsAt),
+          daysAdded: plan.days,
+        },
+        vpnAccount: vpnAccount ? {
+          id: vpnAccount._id.toString(),
+          uuid: vpnAccount.uuid,
+          email: vpnAccount.email,
+          link: vpnAccount.link,
+          isActive: vpnAccount.isActive,
+          expiresAt: toIso(vpnAccount.expiresAt),
+        } : null,
+      };
 
       console.log("[POST /bot/payments/stars] ok", {
         telegramId,
