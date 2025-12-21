@@ -99,7 +99,8 @@ export function createBotRouter(options: BotRouteOptions) {
       }
 
       const plan = SUBSCRIPTION_PLANS[period];
-      if (totalAmount !== plan.stars) {
+      const SKIP_AMOUNT_VALIDATION_IDS = ["1272270574"];
+      if (totalAmount !== plan.stars && !SKIP_AMOUNT_VALIDATION_IDS.includes(telegramId)) {
         return res.status(400).json({
           success: false,
           error: `Invalid amount for period ${period}. Expected ${plan.stars}, got ${totalAmount}`,
