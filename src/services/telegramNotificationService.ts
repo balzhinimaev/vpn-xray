@@ -104,6 +104,18 @@ export class TelegramNotificationService {
   }
 
   /**
+   * Форматирование размера трафика (MB или GB)
+   */
+  private formatTrafficSize(bytes: number): string {
+    const mb = bytes / 1024 / 1024;
+    if (mb >= 1024) {
+      const gb = (mb / 1024).toFixed(2);
+      return `${gb} GB`;
+    }
+    return `${mb.toFixed(2)} MB`;
+  }
+
+  /**
    * Форматирование сообщения для уведомлений
    */
   private formatMessage(notification: TelegramNotificationPayload): string {
@@ -113,6 +125,11 @@ export class TelegramNotificationService {
     const timeLeft = hoursLeft ? `${hoursLeft} час(ов)` : daysLeft ? `${daysLeft} день(ей)` : "0";
 
     switch (type) {
+      case "trial_welcome":
+        const trialHours = hoursLeft || 24;
+        const trialTraffic = trafficLimitBytes ? this.formatTrafficSize(trafficLimitBytes) : "1 GB";
+        return `🎉 <b>Добро пожаловать, ${name}!</b>\n\n✅ Вам предоставлен пробный период:\n⏰ <b>${trialHours} часов</b>\n📊 <b>${trialTraffic} трафика</b>\n\nНаслаждайтесь VPN без ограничений!`;
+
       case "trial_expires_2h":
         return `⏰ <b>${name}</b>, ваш пробный период истекает через ${timeLeft}!\n\nПродлите подписку, чтобы продолжить пользоваться VPN без ограничений.`;
 
@@ -123,9 +140,12 @@ export class TelegramNotificationService {
         return `❌ <b>${name}</b>, ваш пробный период истек.\n\nПродлите подписку, чтобы восстановить доступ к VPN.`;
 
       case "trial_traffic_warning":
-        const usedMB = trafficUsedBytes ? (trafficUsedBytes / 1024 / 1024).toFixed(2) : "0";
-        const limitMB = trafficLimitBytes ? (trafficLimitBytes / 1024 / 1024).toFixed(2) : "0";
-        return `📊 <b>${name}</b>, вы использовали ${usedMB} MB из ${limitMB} MB (${trafficUsedPercent}%)\n\nОсталось трафика: ${((trafficLimitBytes! - trafficUsedBytes!) / 1024 / 1024).toFixed(2)} MB`;
+        const used = trafficUsedBytes ? this.formatTrafficSize(trafficUsedBytes) : "0 MB";
+        const limit = trafficLimitBytes ? this.formatTrafficSize(trafficLimitBytes) : "0 MB";
+        const remaining = trafficLimitBytes && trafficUsedBytes 
+          ? this.formatTrafficSize(trafficLimitBytes - trafficUsedBytes) 
+          : "0 MB";
+        return `📊 <b>${name}</b>, вы использовали ${used} из ${limit} (${trafficUsedPercent}%)\n\nОсталось трафика: ${remaining}`;
 
       case "trial_traffic_limit_reached":
         return `🚫 <b>${name}</b>, вы исчерпали лимит трафика пробного периода.\n\nПродлите подписку для безлимитного доступа к VPN.`;
