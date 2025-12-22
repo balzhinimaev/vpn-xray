@@ -4,6 +4,7 @@ import { createTelegramInitDataValidator } from "../../auth/telegramAuth.js";
 import { findOrCreateUser, generateReferralCode, createReferral } from "../../models/index.js";
 import { Session } from "../../models/index.js";
 import { XrayService } from "../../services/xrayService.js";
+import { TelegramNotificationService } from "../../services/telegramNotificationService.js";
 import { config } from "../../config/index.js";
 
 export interface AuthRouteOptions {
@@ -304,21 +305,34 @@ export function createAuthRouter(options: AuthRouteOptions) {
 
             console.log("[POST /auth/bot-register] VLESS account created:", vlessAccount.id);
             
-            // Логируем приветственное уведомление для нового пользователя
+            // Отправляем приветственное уведомление для нового пользователя
             if (isNewUser) {
-              await NotificationLog.create({
-                userId: user._id,
-                telegramId: user.telegramId,
-                type: "trial_welcome",
-                sentAt: new Date(),
-                success: true,
-                metadata: {
-                  trialHours: config.TRIAL_PERIOD_HOURS,
-                  vlessAccountId: vlessAccount.id,
-                },
-              }).catch((err) => {
-                console.error("[POST /auth/bot-register] Failed to log welcome notification:", err);
-              });
+              try {
+                const notificationService = new TelegramNotificationService(botToken);
+                const sent = await notificationService.sendNotification({
+                  userId: user._id.toString(),
+                  telegramId: user.telegramId,
+                  type: "trial_welcome",
+                  firstName: user.firstName || undefined,
+                  username: user.username || undefined,
+                  hoursLeft: config.TRIAL_PERIOD_HOURS,
+                  trafficLimitBytes: user.trialTrafficLimitBytes || config.TRIAL_TRAFFIC_LIMIT_BYTES,
+                });
+
+                await NotificationLog.create({
+                  userId: user._id,
+                  telegramId: user.telegramId,
+                  type: "trial_welcome",
+                  sentAt: new Date(),
+                  success: sent,
+                  metadata: {
+                    trialHours: config.TRIAL_PERIOD_HOURS,
+                    vlessAccountId: vlessAccount.id,
+                  },
+                });
+              } catch (err) {
+                console.error("[POST /auth/bot-register] Failed to send welcome notification:", err);
+              }
             }
           } catch (vlessError: any) {
             console.error("[POST /auth/bot-register] Failed to create VLESS account:", vlessError);

@@ -27,7 +27,7 @@ const userSchema = new Schema(
     subscriptionEndsAt: { type: Date }, // Дата окончания оплаченной подписки
     lastNotificationSentAt: { type: Date }, // Последнее отправленное напоминание
     // Trial traffic limits
-    trialTrafficLimitBytes: { type: Number, default: 104857600 }, // 100 MB по умолчанию
+    trialTrafficLimitBytes: { type: Number, default: 1073741824 }, // 1 GB (1024 MB) по умолчанию
     trialTrafficUsedBytes: { type: Number, default: 0 }, // Использовано байт
     trialTrafficLastSyncAt: { type: Date }, // Последняя синхронизация трафика
     // Referral system

@@ -58,11 +58,11 @@ const DEFAULT_ACCOUNT_EXPIRY_DAYS = parseInt(
 
 // Trial & Subscription
 const TRIAL_PERIOD_HOURS = parseInt(
-  process.env.TRIAL_PERIOD_HOURS || "3",
+  process.env.TRIAL_PERIOD_HOURS || "24",
   10
 );
 const TRIAL_TRAFFIC_LIMIT_MB = parseInt(
-  process.env.TRIAL_TRAFFIC_LIMIT_MB || "100",
+  process.env.TRIAL_TRAFFIC_LIMIT_MB || "1024",
   10
 );
 const TRIAL_TRAFFIC_LIMIT_BYTES = TRIAL_TRAFFIC_LIMIT_MB * 1024 * 1024; // Конвертация MB в байты
